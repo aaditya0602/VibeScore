@@ -26,7 +26,7 @@ The VTHacks build includes:
 - A GoDaddy Agent Name Service trust explorer for discovering registered agents and reviewing registry trust signals.
 - A privacy-first MCP flow with report explanation, drill recommendations, publish preview, and confirmation-bound publishing.
 
-The project targets **Overall**, **Best UI/UX**, **Cloudforce HokieAI Side Kick**, **Best Use of Gemini API**, **Best Ut Prosim**, **Best Domain Name**, and **Best Use of ANS**.
+The project targets **Overall**, **Best UI/UX**, **Best Ut Prosim**, **Best Use of Gemini API**, **Best Domain Name**, **Deloitte x Databricks AI Agent for the Virginia Tech Student Experience**, and **GoDaddy Best Use of ANS**.
 
 ## Product flow
 
@@ -115,4 +115,4 @@ npm test
 
 The suite covers collectors, scoring, accounts, challenge redaction, the QuickJS sandbox, API flows, MCP publishing safeguards, Gemini-compatible requests, ANS response sanitization, and synthetic ranking separation.
 
-See [IMPLEMENTATION.md](IMPLEMENTATION.md) for the architecture, API surface, and deployment details.
+See [PRD.md](PRD.md) for product requirements, delivery status, sponsor-track implementation plans, acceptance criteria, and the release test checklist.
