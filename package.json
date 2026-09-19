@@ -1,0 +1,24 @@
+{
+  "name": "vibescore",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.20.0"
+  },
+  "scripts": {
+    "dev": "node --env-file-if-exists=.env backend/src/server.ts",
+    "start": "node --env-file-if-exists=.env backend/src/server.ts",
+    "build": "node scripts/build.mjs",
+    "test": "node --test collector/test/*.test.ts backend/test/*.test.ts harness/harness.test.ts",
+    "mcp": "node collector/src/mcp.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.1",
+    "quickjs-emscripten": "^0.31.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.10"
+  }
+}

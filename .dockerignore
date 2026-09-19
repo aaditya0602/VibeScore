@@ -1,0 +1,16 @@
+.git
+.github
+.env
+.env.*
+!.env.example
+node_modules
+**/node_modules
+backend/data
+pilot-data
+.local
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.bundle.json
+backend/public/assets
+npm-debug.log*
