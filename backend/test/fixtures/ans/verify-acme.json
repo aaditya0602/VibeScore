@@ -1,0 +1,7 @@
+{
+  "agentId": "agent-1234",
+  "status": "ACME_VERIFIED",
+  "discoveryRecords": [
+    { "name": "_ans.agent.example.com", "type": "TXT", "value": "ans-record" }
+  ]
+}

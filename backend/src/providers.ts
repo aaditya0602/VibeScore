@@ -1,4 +1,10 @@
 export interface ChatMessage { role: 'user' | 'assistant' | 'system'; content: string }
+async function boundedJson(response: Response): Promise<any> {
+  const reader=response.body?.getReader();if(!reader)throw new Error('The AI provider returned an empty answer.');
+  const chunks:Uint8Array[]=[];let size=0;
+  try{for(;;){const {done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>256_000){await reader.cancel();throw new Error('The AI provider returned an oversized answer.');}chunks.push(value);}}finally{reader.releaseLock();}
+  try{return JSON.parse(Buffer.concat(chunks).toString('utf8'));}catch{throw new Error('The AI provider returned an invalid answer.');}
+}
 export function aiStatus() {
   const provider = process.env.AI_PROVIDER ?? 'zai';
   return { enabled: Boolean(process.env.AI_API_KEY && process.env.AI_MODEL && (provider !== 'azure' || process.env.AI_ENDPOINT)), provider,
@@ -16,8 +22,15 @@ export async function askAssistant(messages: ChatMessage[]): Promise<{ text: str
     messages:messages.map(m => ({role:m.role,content:m.content.slice(0,14000)})), max_tokens:status.maxOutputTokens };
   if(status.provider==='gemini')payload.reasoning_effort='low';
   const response = await fetch(endpoint, { method:'POST', headers, signal:AbortSignal.timeout(45000), redirect:'error', body:JSON.stringify(payload) });
-  if (!response.ok) throw new Error(response.status === 429 ? 'The AI provider is at its usage limit. Please try later.' : 'The AI provider could not complete this request. Your work is saved.');
-  const body = await response.json() as any;
+  if (!response.ok) {
+    await response.body?.cancel();
+    console.error('AI provider request failed',{provider:status.provider,status:response.status,requestId:response.headers.get('x-request-id')??response.headers.get('x-goog-request-id')??undefined});
+    if(response.status===429)throw new Error('The AI provider is at its usage limit. Please try later.');
+    if(response.status===401||response.status===403)throw new Error('The AI provider credentials were rejected. Your work is saved; please tell the event organizer.');
+    if(response.status===400)throw new Error('The AI provider rejected its model or request configuration. Your work is saved; please tell the event organizer.');
+    throw new Error('The AI provider could not complete this request. Your work is saved.');
+  }
+  const body = await boundedJson(response);
   const content = body?.choices?.[0]?.message?.content;
   if (typeof content !== 'string' || !content.trim()) throw new Error('The AI provider returned an empty answer.');
   return { text:content.slice(0,18000), provider:status.provider, model:status.model!, tokens: typeof body.usage?.total_tokens === 'number' ? body.usage.total_tokens : null };

@@ -11,7 +11,10 @@
     "start": "node --env-file-if-exists=.env backend/src/server.ts",
     "build": "node scripts/build.mjs",
     "test": "node --test collector/test/*.test.ts backend/test/*.test.ts harness/harness.test.ts",
-    "mcp": "node collector/src/mcp.ts"
+    "smoke": "node scripts/smoke.mjs",
+    "mcp": "node collector/src/mcp.ts",
+    "ans": "node scripts/ans-register.mjs",
+    "clinic:seed-demo": "node scripts/seed-clinic-demo.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.27.1",
