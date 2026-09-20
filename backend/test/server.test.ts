@@ -21,8 +21,11 @@ test('public beta API supports account, catalog, drill and interview flows witho
     let call=await api('/api/register',{method:'POST',body:JSON.stringify({handle:'api_builder',password:'correct horse battery'})});
     assert.equal(call.response.status,201);assert.ok(call.data.recoveryCode);assert.match(cookie,/vibescore_session/);
     call=await api('/api/me');assert.equal(call.data.user.handle,'api_builder');assert.equal(call.data.user.isPublic,false);
-    call=await api('/api/challenges');assert.equal(call.data.challenges.length,15);assert.doesNotMatch(JSON.stringify(call.data),/referenceSolution|strongExample|hidden/);
-    const drill=call.data.challenges.find((x:any)=>x.kind==='drill');
+    call=await api('/api/challenges');const challenges=call.data.challenges;assert.equal(challenges.length,15);assert.doesNotMatch(JSON.stringify(call.data),/referenceSolution|strongExample|hidden/);
+    call=await api('/api/status');assert.equal(call.data.databricks.enabled,false);assert.equal(call.data.ans.enabled,false);
+    call=await api('/api/navigator/recommend',{method:'POST',body:JSON.stringify({goal:'software interview',skill:'unknown'})});assert.equal(call.response.status,400);
+    call=await api('/api/navigator/recommend',{method:'POST',body:JSON.stringify({goal:'software interview',skill:'verification'})});assert.equal(call.response.status,503);assert.match(call.data.error,/not configured/);
+    const drill=challenges.find((x:any)=>x.kind==='drill');
     call=await api(`/api/challenges/${drill.id}/start`,{method:'POST',body:JSON.stringify({mode:'practice'})});const drillAttempt=call.data.attempt.id;
     call=await api(`/api/attempts/${drillAttempt}/submit`,{method:'POST',body:JSON.stringify({answer:'First clarify the user, constraints, tests, and a small plan.'})});
     assert.equal(call.response.status,200);assert.equal(call.data.result.ratingEligible,false);

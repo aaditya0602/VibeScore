@@ -24,6 +24,7 @@ The VTHacks build includes:
 - A no-account **Hokie AI Builder Readiness Check** that recommends a focused next drill.
 - Gemini-powered interview coaching when a Gemini API key is configured.
 - A GoDaddy Agent Name Service trust explorer for discovering registered agents and reviewing registry trust signals.
+- A Databricks SQL-backed Hokie Career Navigator for matching skill gaps to curated campus and career resources.
 - A privacy-first MCP flow with report explanation, drill recommendations, publish preview, and confirmation-bound publishing.
 
 The project targets **Overall**, **Best UI/UX**, **Best Ut Prosim**, **Best Use of Gemini API**, **Best Domain Name**, **Deloitte x Databricks AI Agent for the Virginia Tech Student Experience**, and **GoDaddy Best Use of ANS**.
@@ -77,6 +78,21 @@ ANS_API_TOKEN=your-event-or-ote-token
 ```
 
 The backend only contacts allowlisted GoDaddy HTTPS hosts. It rejects redirects and oversized responses, returns a sanitized trust summary, and never invokes endpoints supplied by discovered agents.
+
+## Configure Databricks
+
+The Hokie Career Navigator uses a server-side, read-only Databricks SQL Statement Execution adapter. Run [databricks/setup.sql](databricks/setup.sql) in a SQL warehouse to create and seed the curated `campus_resources` table, then configure:
+
+```dotenv
+DATABRICKS_HOST=https://your-workspace.azuredatabricks.net
+DATABRICKS_TOKEN=your-server-side-token
+DATABRICKS_WAREHOUSE_ID=your-sql-warehouse-id
+DATABRICKS_CATALOG=main
+DATABRICKS_SCHEMA=default
+DATABRICKS_RESOURCE_TABLE=campus_resources
+```
+
+The token remains server-side. Queries use fixed SQL with named parameters, return bounded inline results, and accept only validated Databricks workspace hosts and table identifiers.
 
 ## Use the MCP server
 

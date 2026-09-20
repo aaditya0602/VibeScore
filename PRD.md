@@ -105,6 +105,7 @@ Students also lack a clear bridge from “I use AI” to credible evidence that 
 | Gemini adapter | Server-side Gemini-compatible coaching provider with limits and graceful error handling | `backend/src/providers.ts` |
 | Hokie path | No-account, three-question readiness check with a recommended next drill | `/hokie` in `web/src/app.js` |
 | ANS explorer | Read-only registered-agent search and trust-detail adapter with browser UI | `backend/src/ans.ts`, `/hokie` in `web/src/app.js` |
+| Databricks navigator | Read-only SQL Statement Execution adapter, career-resource endpoint, Hokie UI, and optional ANS recommendations | `backend/src/databricks.ts`, `backend/src/server.ts`, `/hokie` in `web/src/app.js` |
 | Persistence | SQLite storage for accounts, attempts, messages, workflow bundles, scores, and feedback | `backend/src/store.ts`, `backend/src/platform-store.ts` |
 | Deployment | Containerized Node.js application deployed to Azure App Service over HTTPS | `Dockerfile`, `.azure/config` |
 
@@ -133,7 +134,7 @@ The automated suite covers collectors, privacy reduction, MCP safeguards, scorin
 | Best Ut Prosim | No-account readiness experience exists | Deliver or schedule a credible Virginia Tech community service pilot, add consented impact measurement, and show honest aggregate service and learning metrics |
 | Best Use of Gemini API | Provider integration complete but unconfigured | Add a server-side API key and valid model, perform a live coaching call, confirm limits and failure states, and show Gemini visibly in the interview flow |
 | Best Domain Name | Azure hostname only | Register the final domain during the event if required, connect DNS and HTTPS, use it as the canonical URL, and retain proof of registration |
-| Deloitte x Databricks | Product fit and integrated design complete | Query a real Databricks-managed dataset from the Hokie Career Navigator and show a reproducible aggregate impact dashboard or query |
+| Deloitte x Databricks | Server adapter and navigator UI complete; live workspace and dataset pending | Query a real Databricks-managed dataset from the Hokie Career Navigator and show a reproducible aggregate impact dashboard or query |
 | GoDaddy ANS | Read-only adapter and UI complete; live access pending | Use event credentials for real search/detail calls, display registry provenance and missing trust signals, and register VibeScore if credentials and DNS validation permit |
 
 ## 8. Joined sponsor-track experience

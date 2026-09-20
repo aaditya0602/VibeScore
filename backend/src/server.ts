@@ -16,6 +16,7 @@ import { assessDrill, gradeInterview } from './assessment.ts';
 import { runCode } from './runner.ts';
 import { aiStatus, askAssistant } from './providers.ts';
 import { ansStatus, getAnsAgentTrust, searchAnsAgents } from './ans.ts';
+import { databricksStatus, findCareerResources, type NavigatorSkill } from './databricks.ts';
 
 const PUBLIC_DIR=resolve(fileURLToPath(new URL('../public/',import.meta.url)));
 const MIME:Record<string,string>={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.json':'application/json','.svg':'image/svg+xml','.png':'image/png','.ico':'image/x-icon'};
@@ -40,8 +41,9 @@ function publicProfile(handle:string){const user=getUser(handle);if(!user?.isPub
 async function api(req:IncomingMessage,res:ServerResponse,url:URL){
   const path=url.pathname,method=req.method??'GET';
   if(method!=='GET'&&method!=='HEAD')assertOrigin(req);
-  if(method==='GET'&&path==='/api/status')return json(res,200,{ok:true,version:'0.2.0',algoVersion:ALGO_VERSION,ai:aiStatus()});
+  if(method==='GET'&&path==='/api/status')return json(res,200,{ok:true,version:'0.2.0',algoVersion:ALGO_VERSION,ai:aiStatus(),ans:ansStatus(),databricks:databricksStatus()});
   if(method==='GET'&&path==='/api/ans/status')return json(res,200,ansStatus());
+  if(method==='GET'&&path==='/api/databricks/status')return json(res,200,databricksStatus());
   if(method==='GET'&&path==='/api/ans/search'){
     rate(req,'ans-search',12,10*60_000);const query=url.searchParams.get('q')??'';
     if(query.trim().length<2||query.length>128)throw new HttpError(400,'Enter a search between 2 and 128 characters.');
@@ -49,6 +51,16 @@ async function api(req:IncomingMessage,res:ServerResponse,url:URL){
   }
   const ansDetail=path.match(/^\/api\/ans\/agents\/([^/]+)$/);
   if(method==='GET'&&ansDetail){rate(req,'ans-detail',20,10*60_000);try{return json(res,200,await getAnsAgentTrust(decodeURIComponent(ansDetail[1])));}catch(error){throw new HttpError(503,(error as Error).message);}}
+  if(method==='POST'&&path==='/api/navigator/recommend'){
+    rate(req,'navigator',10,10*60_000);const input=await body(req,16_000),goal=text(input.goal,280,'goal').trim(),skill=text(input.skill,20,'skill') as NavigatorSkill;
+    if(goal.length<3)throw new HttpError(400,'Describe a career goal in at least 3 characters.');
+    if(!['framing','context','debugging','verification','review','efficiency'].includes(skill))throw new HttpError(400,'Choose a valid VibeScore skill focus.');
+    let result;try{result=await findCareerResources({goal,skill});}catch(error){throw new HttpError(503,(error as Error).message);}
+    const challenges=listChallenges(),practice=challenges.find(c=>c.kind==='drill'&&c.skill===skill)??null,interview=challenges.find(c=>c.kind==='interview'&&c.skill===skill)??null;
+    const query=`${skill} career`,status=ansStatus();let agents:any[]=[];let ansUnavailable=false;
+    if(status.enabled){try{agents=(await searchAnsAgents({query,pageSize:3})).agents;}catch{ansUnavailable=true;}}
+    return json(res,200,{goal,focusSkill:skill,practice:practice?{id:practice.id,title:practice.title,summary:practice.summary}:null,interview:interview?{id:interview.id,title:interview.title,summary:interview.summary}:null,resources:result.resources,provenance:{source:result.source,queriedAt:result.queriedAt},ans:{enabled:status.enabled,unavailable:ansUnavailable,query,agents,disclaimer:'Registry-reported identity signals; not a safety or quality guarantee.'}});
+  }
   if(method==='POST'&&path==='/api/register'){
     rate(req,'auth',12,15*60_000);const input=await body(req);if(!validHandle(input.handle))throw new HttpError(400,'Use 2–24 lowercase letters, numbers, underscores, or hyphens.');if(input.password!==undefined&&!validPassword(input.password))throw new HttpError(400,'Password must contain 10–128 characters.');const created=registerUser(input.handle,input.password);if(!created)throw new HttpError(409,'That handle is already taken.');
     if(input.password===undefined)return json(res,201,{handle:created.handle,token:created.token,recoveryCode:created.recoveryCode,notice:'Save both secrets. They are shown once.'});
