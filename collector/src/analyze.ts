@@ -162,11 +162,11 @@ export function explainReport(report: ProjectAnalysis) {
 export function recommendDrills(report: ProjectAnalysis) {
   const o = report.bundle?.overall;
   const drills = [
-    { category: "verification", title: "Repair a failing implementation", priority: 1 - (o?.verifyAfterEditRatio ?? 0), task: "Ask the assistant to reproduce the bug, add a regression test, fix it, and run the tests before concluding." },
-    { category: "direction", title: "Turn a vague request into acceptance criteria", priority: 1 - (o?.firstPromptContextScore ?? 0), task: "Specify inputs, outputs, edge cases, constraints, and a success check before requesting implementation." },
-    { category: "efficiency", title: "Break a repeated failure loop", priority: o?.loopBurnFraction ?? 0.5, task: "After two failed attempts, summarize evidence and change the debugging hypothesis before another edit." },
+    { id: "verify-pagination", category: "verification", title: "Test what the demo missed", priority: 1 - (o?.verifyAfterEditRatio ?? 0), task: "Ask the assistant to reproduce the bug, add a regression test, fix it, and run the tests before concluding." },
+    { id: "frame-expense-tracker", category: "framing", title: "Turn an idea into a build brief", priority: 1 - (o?.firstPromptContextScore ?? 0), task: "Specify inputs, outputs, edge cases, constraints, and a success check before requesting implementation." },
+    { id: "debug-retry-loop", category: "debugging", title: "Stop an unproductive fix loop", priority: o?.loopBurnFraction ?? 0.5, task: "After two failed attempts, summarize evidence and change the debugging hypothesis before another edit." },
   ];
   return { basis: o ? "Observed provisional usage signals" : "Starter practice; no session evidence yet",
-    drills: drills.sort((a, b) => b.priority - a.priority).map(({ priority, ...drill }) => drill),
-    practice_path: "/drills", note: "Practice recommendations are coaching suggestions, not scored attempts." };
+    drills: drills.sort((a, b) => b.priority - a.priority).map(({ priority, ...drill }) => ({ ...drill, practice_path: `/challenge/${drill.id}` })),
+    practice_path: "/practice", note: "Practice recommendations are coaching suggestions, not scored attempts." };
 }

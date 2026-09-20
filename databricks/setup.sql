@@ -1,8 +1,11 @@
 -- VibeScore Hokie Career Navigator
 -- Run in a Databricks SQL warehouse. Change the catalog/schema here and in
--- the VibeScore DATABRICKS_* environment settings if you do not use main.default.
+-- the VibeScore DATABRICKS_* environment settings if you do not use vibescore.hokie.
 
-CREATE TABLE IF NOT EXISTS main.default.campus_resources (
+CREATE CATALOG IF NOT EXISTS vibescore;
+CREATE SCHEMA IF NOT EXISTS vibescore.hokie;
+
+CREATE TABLE IF NOT EXISTS vibescore.hokie.campus_resources (
   resource_id STRING NOT NULL,
   name STRING NOT NULL,
   description STRING NOT NULL,
@@ -13,7 +16,7 @@ CREATE TABLE IF NOT EXISTS main.default.campus_resources (
   last_verified_at TIMESTAMP NOT NULL
 ) USING DELTA;
 
-MERGE INTO main.default.campus_resources AS target
+MERGE INTO vibescore.hokie.campus_resources AS target
 USING (
   SELECT * FROM VALUES
     ('vt-interview-prep', 'Prepare for an Interview', 'Virginia Tech guidance, mock-interview tools, common questions, research, and follow-up advice.', 'https://career.vt.edu/channels/prepare-for-an-interview/', 'framing,context,verification,review', 'interview,internship,job,graduate school', 'Virginia Tech Career and Professional Development', TIMESTAMP '2026-09-19 00:00:00'),
@@ -36,5 +39,5 @@ WHEN MATCHED THEN UPDATE SET
 WHEN NOT MATCHED THEN INSERT *;
 
 SELECT resource_id, name, skill_tags, career_tags, source, last_verified_at
-FROM main.default.campus_resources
+FROM vibescore.hokie.campus_resources
 ORDER BY name;

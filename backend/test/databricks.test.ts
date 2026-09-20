@@ -1,51 +1,147 @@
-import test from 'node:test';
+import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { databricksStatus, findCareerResources } from '../src/databricks.ts';
+import { databricksStatus, queryCampusResources } from '../src/databricks.ts';
 
-const KEYS=['DATABRICKS_HOST','DATABRICKS_TOKEN','DATABRICKS_WAREHOUSE_ID','DATABRICKS_CATALOG','DATABRICKS_SCHEMA','DATABRICKS_RESOURCE_TABLE'] as const;
-function configured(fn:()=>Promise<void>|void){return async()=>{const prior=Object.fromEntries(KEYS.map(k=>[k,process.env[k]]));Object.assign(process.env,{DATABRICKS_HOST:'https://dbc-demo.cloud.databricks.com',DATABRICKS_TOKEN:'secret-token',DATABRICKS_WAREHOUSE_ID:'warehouse_123',DATABRICKS_CATALOG:'vibescore',DATABRICKS_SCHEMA:'hokie',DATABRICKS_RESOURCE_TABLE:'campus_resources'});try{await fn();}finally{for(const k of KEYS)prior[k]===undefined?delete process.env[k]:process.env[k]=prior[k];}}}
+const envNames = ['DATABRICKS_HOST', 'DATABRICKS_TOKEN', 'DATABRICKS_WAREHOUSE_ID', 'DATABRICKS_CATALOG', 'DATABRICKS_SCHEMA', 'DATABRICKS_RESOURCES_TABLE'] as const;
+const original = Object.fromEntries(envNames.map(name => [name, process.env[name]]));
 
-test('status is disabled without shared server credentials',configured(async()=>{
+function setup() {
+  process.env.DATABRICKS_HOST = 'https://adb-123456789.12.azuredatabricks.net';
+  process.env.DATABRICKS_TOKEN = 'private-test-token';
+  process.env.DATABRICKS_WAREHOUSE_ID = 'warehouse-123';
+  process.env.DATABRICKS_CATALOG = 'vibescore';
+  process.env.DATABRICKS_SCHEMA = 'hokie';
+  process.env.DATABRICKS_RESOURCES_TABLE = 'campus_resources';
+}
+
+test.after(() => {
+  for (const name of envNames) {
+    const value = original[name];
+    if (value === undefined) delete process.env[name]; else process.env[name] = value;
+  }
+});
+
+function resultBody(state = 'SUCCEEDED') {
+  return {
+    statement_id: 'statement-123', status: { state },
+    manifest: { schema: { columns: ['resource_id', 'name', 'description', 'url', 'skill_tags', 'career_tags', 'source', 'last_verified_at'].map(name => ({ name })) } },
+    result: { data_array: [[
+      'career-center', 'Career Center', 'Interview and internship support', 'https://career.vt.edu/',
+      'verification,context', 'interview', 'Virginia Tech Career Center', '2026-09-01T00:00:00Z',
+    ]] },
+  };
+}
+
+function json(value: unknown, status = 200, headers: Record<string, string> = {}) {
+  return new Response(JSON.stringify(value), { status, headers: { 'content-type': 'application/json', ...headers } });
+}
+
+test('executes a parameterized read-only query and returns sanitized resources with freshness', async () => {
+  setup(); let request: Request | undefined;
+  const found = await queryCampusResources({ skill: 'verification', query: "interview' OR 1=1 --", limit: 3 }, async (input, init) => {
+    request = new Request(input, init);
+    return json(resultBody());
+  });
+  assert.equal(request?.url, 'https://adb-123456789.12.azuredatabricks.net/api/2.0/sql/statements/');
+  assert.equal(request?.method, 'POST');
+  assert.equal(request?.redirect, 'error');
+  assert.equal(request?.headers.get('authorization'), 'Bearer private-test-token');
+  const payload = await request?.json() as any;
+  assert.match(payload.statement, /^SELECT /);
+  assert.match(payload.statement, /FROM `vibescore`\.`hokie`\.`campus_resources`/);
+  assert.doesNotMatch(payload.statement, /\baudience\b|array_contains/);
+  assert.match(payload.statement, /lower\(skill_tags\) LIKE/);
+  assert.doesNotMatch(payload.statement, /OR 1=1/);
+  assert.deepEqual(payload.parameters, [
+    { name: 'skill', value: 'verification', type: 'STRING' },
+    { name: 'query', value: "interview' OR 1=1 --", type: 'STRING' },
+  ]);
+  assert.deepEqual(found.resources[0], {
+    resourceId: 'career-center', name: 'Career Center', description: 'Interview and internship support', url: 'https://career.vt.edu/',
+    audience: [], skillTags: ['verification', 'context'], careerTags: ['interview'],
+    source: 'Virginia Tech Career Center', lastVerifiedAt: '2026-09-01T00:00:00.000Z',
+  });
+  assert.equal(found.source, 'Databricks Unity Catalog');
+  assert.equal(found.freshness.newestLastVerifiedAt, '2026-09-01T00:00:00.000Z');
+  assert.ok(Number.isFinite(Date.parse(found.retrievedAt)));
+  assert.ok(!JSON.stringify(found).includes('private-test-token'));
+});
+
+test('polls the statement within a deadline', async () => {
+  setup(); const requests: Request[] = [];
+  const bodies = [
+    { statement_id: 'statement-123', status: { state: 'PENDING' } },
+    { statement_id: 'statement-123', status: { state: 'RUNNING' } },
+    resultBody(),
+  ];
+  const found = await queryCampusResources({}, async (input, init) => {
+    requests.push(new Request(input, init));
+    return json(bodies.shift());
+  }, { pollIntervalMs: 0, deadlineMs: 1_000 });
+  assert.equal(requests.length, 3);
+  assert.equal(requests[1].url, 'https://adb-123456789.12.azuredatabricks.net/api/2.0/sql/statements/statement-123');
+  assert.equal(requests[1].method, 'GET');
+  assert.equal(found.resources.length, 1);
+});
+
+test('status is enabled only for complete, valid server configuration', () => {
+  setup();
+  assert.deepEqual(databricksStatus(), { enabled: true, source: 'Databricks Unity Catalog' });
   delete process.env.DATABRICKS_TOKEN;
-  assert.equal(databricksStatus().enabled,false);
-}));
+  assert.equal(databricksStatus().enabled, false);
+  setup(); process.env.DATABRICKS_HOST = 'https://attacker.example';
+  assert.equal(databricksStatus().enabled, false);
+  setup(); process.env.DATABRICKS_CATALOG = 'vibescore; DROP TABLE users';
+  assert.equal(databricksStatus().enabled, false);
+});
 
-test('resource query uses the statement API, named parameters, and sanitized rows',configured(async()=>{
-  let request:any;
-  const fetcher:typeof fetch=async(url,init)=>{request={url:String(url),init,body:JSON.parse(String(init?.body))};return new Response(JSON.stringify({
-    status:{state:'SUCCEEDED'}, result:{data_array:[
-      ['r1','Career Center','Interview support','https://career.vt.edu/interview','["verification","review"]','interview, internship','Virginia Tech','2026-09-19T00:00:00Z'],
-      ['bad','Unsafe URL','Nope','javascript:alert(1)','review','career','Unknown',null],
-    ]},
-  }),{status:200,headers:{'content-type':'application/json'}})};
-  const result=await findCareerResources({goal:"interview' OR 1=1 --",skill:'verification'},fetcher);
-  assert.equal(request.url,'https://dbc-demo.cloud.databricks.com/api/2.0/sql/statements');
-  assert.equal(request.init.redirect,'error');
-  assert.match(request.init.headers.authorization,/^Bearer /);
-  assert.doesNotMatch(request.body.statement,/OR 1=1/);
-  assert.equal(request.body.parameters[0].name,'skill_pattern');
-  assert.deepEqual(result.resources.map(x=>x.resourceId),['r1']);
-  assert.deepEqual(result.resources[0].skillTags,['verification','review']);
-}));
+test('rejects untrusted hosts, unsafe identifiers, and invalid query values before fetch', async () => {
+  setup(); let calls = 0;
+  const fetcher: typeof fetch = async () => { calls++; return json(resultBody()); };
+  process.env.DATABRICKS_HOST = 'https://adb-1.azuredatabricks.net.attacker.example';
+  await assert.rejects(queryCampusResources({}, fetcher), /configuration is invalid/);
+  setup(); process.env.DATABRICKS_RESOURCES_TABLE = 'resources` JOIN secrets';
+  await assert.rejects(queryCampusResources({}, fetcher), /configuration is invalid/);
+  setup();
+  await assert.rejects(queryCampusResources({ skill: 'security' as any }, fetcher), /skill is invalid/);
+  await assert.rejects(queryCampusResources({ query: 'x'.repeat(241) }, fetcher), /at most 240/);
+  await assert.rejects(queryCampusResources({ limit: Number.NaN }, fetcher), /limit is invalid/);
+  assert.equal(calls, 0);
+});
 
-test('rejects invalid hosts, identifiers, inputs, oversized and unfinished responses',configured(async()=>{
-  const ok:typeof fetch=async()=>new Response(JSON.stringify({status:{state:'SUCCEEDED'},result:{data_array:[]}}),{status:200});
-  process.env.DATABRICKS_HOST='https://evil.example';
-  await assert.rejects(()=>findCareerResources({goal:'software interview',skill:'review'},ok),/configuration is invalid/);
-  process.env.DATABRICKS_HOST='https://dbc-demo.cloud.databricks.com';process.env.DATABRICKS_RESOURCE_TABLE='resources; DROP TABLE users';
-  await assert.rejects(()=>findCareerResources({goal:'software interview',skill:'review'},ok),/table configuration is invalid/);
-  process.env.DATABRICKS_RESOURCE_TABLE='campus_resources';
-  await assert.rejects(()=>findCareerResources({goal:'x',skill:'review'},ok),/3–280/);
-  await assert.rejects(()=>findCareerResources({goal:'software interview',skill:'unknown' as any},ok),/valid VibeScore skill/);
-  const unfinished:typeof fetch=async()=>new Response(JSON.stringify({status:{state:'PENDING'}}),{status:200});
-  await assert.rejects(()=>findCareerResources({goal:'software interview',skill:'review'},unfinished),/did not finish/);
-  const oversized:typeof fetch=async()=>new Response('{}',{status:200,headers:{'content-length':'1000001'}});
-  await assert.rejects(()=>findCareerResources({goal:'software interview',skill:'review'},oversized),/too much data/);
-}));
+test('drops unsafe and malformed resource rows without exposing arbitrary fields', async () => {
+  setup(); const body = resultBody();
+  body.result.data_array = [
+     ['one', 'Unsafe URL', 'x', 'javascript:alert(1)', [], [], 'source', 'bad date'],
+     ['two', 'Safe', 'x'.repeat(2_000), 'https://student.vt.edu/path', '["debugging"]', ['portfolio'], 'VT', '2026-08-01'],
+     ['', 'Missing ID', 'x', 'https://vt.edu/', [], [], 'VT', '2026-08-01'],
+  ];
+  (body as any).secret = 'must-not-escape';
+  const found = await queryCampusResources({}, async () => json(body));
+  assert.equal(found.resources.length, 1);
+  assert.equal(found.resources[0].resourceId, 'two');
+  assert.equal(found.resources[0].description.length, 1000);
+   assert.deepEqual(found.resources[0].audience, []);
+  assert.ok(!JSON.stringify(found).includes('must-not-escape'));
+});
 
-test('maps provider limits and malformed results to safe errors',configured(async()=>{
-  const limited:typeof fetch=async()=>new Response('{}',{status:429});
-  await assert.rejects(()=>findCareerResources({goal:'software interview',skill:'context'},limited),/request limit/);
-  const malformed:typeof fetch=async()=>new Response('{',{status:200});
-  await assert.rejects(()=>findCareerResources({goal:'software interview',skill:'context'},malformed),/invalid response/);
-}));
+test('rejects redirects, oversized, malformed, failed, and incomplete responses safely', async () => {
+  setup();
+  await assert.rejects(queryCampusResources({}, async () => new Response('', { status: 302, headers: { location: 'https://attacker.example' } })), /temporarily unavailable/);
+  await assert.rejects(queryCampusResources({}, async () => json({}, 200, { 'content-length': '1000001' })), /too large/);
+  await assert.rejects(queryCampusResources({}, async () => new Response('{bad json')), /invalid response/);
+  await assert.rejects(queryCampusResources({}, async () => json({ statement_id: 'x', status: { state: 'FAILED' }, error: { message: 'token=secret' } })), /temporarily unavailable/);
+  const incomplete = resultBody(); incomplete.result = { ...incomplete.result, next_chunk_internal_link: '/next' } as any;
+  await assert.rejects(queryCampusResources({}, async () => json(incomplete)), /incomplete response/);
+});
+
+test('enforces response byte limit while streaming and reports a polling deadline', async () => {
+  setup(); let cancelled = false;
+  const stream = new ReadableStream<Uint8Array>({
+    pull(controller) { controller.enqueue(new Uint8Array(600_000)); },
+    cancel() { cancelled = true; },
+  });
+  await assert.rejects(queryCampusResources({}, async () => new Response(stream)), /too large/);
+  assert.equal(cancelled, true);
+  await assert.rejects(queryCampusResources({}, async () => json({ statement_id: 'statement-123', status: { state: 'PENDING' } }), { deadlineMs: 1, pollIntervalMs: 1 }), /timed out/);
+});

@@ -4,8 +4,8 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
-  closeDatabase, deleteUser, getDatabase, getUser, loadPublicPopulation, loginUser,
-  recoverAccount, registerUser, saveBundle, scoreHistory, setVisibility, userByToken,
+  closeDatabase, credentialByToken, deleteUser, getDatabase, getUser, loadPublicPopulation, loginUser,
+  recoverAccount, registerUser, revokeApiTokens, rotateToken, saveBundle, scoreHistory, setVisibility, userByToken,
 } from '../src/store.ts';
 
 function bundle(extra: Record<string,unknown> = {}) {
@@ -30,9 +30,24 @@ test('account, evidence, visibility and recovery lifecycle is durable and privat
     const created = registerUser('builder_1','correct horse battery');
     assert.ok(created?.token); assert.ok(created?.recoveryCode);
     assert.equal(created.isPublic,false);
-    assert.equal(userByToken(created.token)?.handle,'builder_1');
+    assert.equal(userByToken(created.token,'api')?.handle,'builder_1');
+    assert.equal(credentialByToken(created.token)?.kind,'api');
+    assert.equal(userByToken(created.token,'session'),undefined);
+    assert.equal(userByToken(created.token,'api')?.handle,'builder_1');
     assert.equal(loginUser('builder_1','wrong password'),null);
-    assert.equal(loginUser('builder_1','correct horse battery')?.handle,'builder_1');
+    const session=loginUser('builder_1','correct horse battery')!;
+    assert.equal(session.handle,'builder_1');
+    assert.equal(credentialByToken(session.token)?.kind,'session');
+    assert.equal(userByToken(session.token,'api'),undefined);
+    assert.equal(userByToken(session.token,'session')?.handle,'builder_1');
+    const other=registerUser('other_builder','another good password')!;
+    const rotated=rotateToken('builder_1');
+    assert.equal(userByToken(created.token,'api'),undefined);
+    assert.equal(userByToken(rotated,'api')?.handle,'builder_1');
+    revokeApiTokens('builder_1');
+    assert.equal(userByToken(rotated,'api'),undefined);
+    assert.equal(userByToken(session.token,'session')?.handle,'builder_1','API revocation preserves sessions');
+    assert.equal(userByToken(other.token,'api')?.handle,'other_builder','API revocation is scoped to the owner');
     const stored = getDatabase().prepare('SELECT hash FROM credentials').all() as {hash:string}[];
     assert.equal(stored.some(x=>x.hash===created.token),false,'raw token must not be stored');
     saveBundle('builder_1',bundle() as any);
@@ -43,7 +58,7 @@ test('account, evidence, visibility and recovery lifecycle is durable and privat
     assert.equal(loadPublicPopulation().length,1);
     const recovered = recoverAccount('builder_1',created.recoveryCode,'a newer safe password');
     assert.ok(recovered?.token);
-    assert.equal(userByToken(created.token),undefined,'recovery revokes earlier credentials');
+    assert.equal(userByToken(created.token,'api'),undefined,'recovery revokes earlier credentials');
     assert.equal(loginUser('builder_1','a newer safe password')?.handle,'builder_1');
     assert.equal(deleteUser('builder_1'),true);
     assert.equal(getUser('builder_1'),undefined);

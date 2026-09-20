@@ -17,7 +17,7 @@ The product keeps two kinds of evidence separate:
 - **Workflow evidence** comes from explicitly selected Claude Code and Codex sessions. It measures process signals and remains provisional.
 - **Challenge evidence** comes from controlled, timed tasks with server-side grading. It produces the assessed public rating.
 
-For VTHacks, the remaining sponsor work forms one connected experience: a **Hokie AI Career Navigator and community skill clinic**. A student completes a private readiness check, receives drills and campus-career recommendations, learns how to inspect AI-agent identity through GoDaddy ANS, and contributes only consented, pseudonymous outcomes to a Databricks impact view. That same flow supports Deloitte x Databricks, Best Ut Prosim, and Best Use of ANS without creating three unrelated demos.
+For VTHacks, the sponsor work forms one connected experience: a **Hokie AI Career Navigator and community skill clinic**. A student completes a private readiness check, receives drills and campus-career recommendations, learns how to inspect AI-agent identity through GoDaddy ANS, and can contribute only consented, pseudonymous outcomes to an aggregate impact view. That same flow supports Deloitte x Databricks, Best Ut Prosim, and Best Use of ANS without creating three unrelated demos.
 
 ## 2. Problem
 
@@ -94,19 +94,19 @@ Students also lack a clear bridge from “I use AI” to credible evidence that 
 | --- | --- | --- |
 | Public application | Responsive single-page product with landing, practice, privacy, leaderboard, profiles, and settings | `web/src/app.js`, `backend/public` |
 | Accounts | Registration, secure sessions, login, recovery code, visibility controls, and cascading deletion | `backend/src/store.ts`, `backend/src/server.ts` |
-| Curriculum | Thirteen drills across framing, context, debugging, verification, review, architecture, and efficiency | `backend/src/challenges.ts` |
-| Interviews | Six timed JavaScript interview rounds with workspace artifacts, visible and hidden tests, and an ownership debrief | `backend/src/challenges.ts`, `backend/src/assessment.ts` |
+| Curriculum | Thirteen drills across framing, context, debugging, verification, review, and efficiency | `backend/src/challenges.ts` |
+| Interviews | Six timed JavaScript interview rounds with visible and hidden tests | `backend/src/challenges.ts`, `backend/src/assessment.ts` |
 | Safe execution | QuickJS worker with time and memory limits and no Node.js, filesystem, process, environment, or network APIs | `backend/src/runner.ts` |
 | Assessment | Transparent drill feedback and objective interview grading | `backend/src/assessment.ts` |
 | Ratings | Separate controlled challenge rating and provisional workflow rating | `backend/src/platform-store.ts`, `backend/src/scoring.ts` |
 | Profiles and leaderboard | Private-by-default profiles with opt-in public challenge and workflow leaderboards | `backend/src/platform-store.ts`, `web/src/app.js` |
 | Local collector | Claude Code and Codex parsing, project identity, episode generation, feature extraction, comparison, and self-contained report | `collector/src` |
-| MCP | Explicit local session discovery, analysis, explanation, recommendations, publish preview, and confirmation-bound publish tools | `collector/src/mcp.ts` |
-| Workflow connection | Signed-in Connect page, one-time API-token rotation, copyable Codex and Claude Code configuration, and private dashboard score | `backend/src/server.ts`, `/connect` in `web/src/app.js` |
+| MCP | Explicit local session discovery, analyze/explain/recommend/preview/publish tools, a guided Connect flow, and a hosted authenticated scoring endpoint | `collector/src/mcp.ts`, `backend/src/remote-mcp.ts`, `/connect` |
 | Gemini adapter | Server-side Gemini-compatible coaching provider with limits and graceful error handling | `backend/src/providers.ts` |
+| Databricks navigator | Read-only SQL Statement Execution adapter, sourced fallback resources, freshness labels, and no-account career-plan UI | `backend/src/databricks.ts`, `backend/src/navigator.ts`, `/hokie` |
+| Clinic analytics | Explicit consent, rotating pseudonyms, coarse events, aggregate suppression, retention/deletion, transactional outbox, and facilitator guide | `backend/src/clinic-analytics.ts`, `docs/clinic-facilitator-guide.md` |
 | Hokie path | No-account, three-question readiness check with a recommended next drill | `/hokie` in `web/src/app.js` |
 | ANS explorer | Read-only registered-agent search and trust-detail adapter with browser UI | `backend/src/ans.ts`, `/hokie` in `web/src/app.js` |
-| Databricks navigator | Read-only SQL Statement Execution adapter, career-resource endpoint, Hokie UI, and optional ANS recommendations | `backend/src/databricks.ts`, `backend/src/server.ts`, `/hokie` in `web/src/app.js` |
 | Persistence | SQLite storage for accounts, attempts, messages, workflow bundles, scores, and feedback | `backend/src/store.ts`, `backend/src/platform-store.ts` |
 | Deployment | Containerized Node.js application deployed to Azure App Service over HTTPS | `Dockerfile`, `.azure/config` |
 
@@ -124,7 +124,7 @@ Students also lack a clear bridge from “I use AI” to credible evidence that 
 
 ### Current verification state
 
-The automated suite covers collectors, privacy reduction, MCP safeguards, scoring, accounts, assessment, hidden-test redaction, QuickJS isolation, API flows, provider request behavior, ANS sanitization, and deterministic score separation. Live credentialed Gemini, ANS, Databricks, custom-domain, and deployed-browser checks remain release gates rather than completed claims.
+The automated suite covers collectors, privacy reduction, MCP safeguards, scoring, accounts, assessment, hidden-test redaction, QuickJS isolation, API flows, provider request behavior, ANS sanitization, workflow projections, the navigator, Databricks response handling, clinic analytics, and deterministic score separation. Live credentialed Gemini, ANS, Databricks, custom-domain, pilot, and deployed-browser checks remain release gates rather than completed claims.
 
 ## 7. Category plan and definition of done
 
@@ -132,11 +132,11 @@ The automated suite covers collectors, privacy reduction, MCP safeguards, scorin
 | --- | --- | --- |
 | Overall | Core product complete | One reliable end-to-end demo that explains the problem, technical depth, usefulness, privacy model, and sponsor integrations |
 | Best UI/UX | Polished responsive UI complete | Mobile and desktop QA, keyboard navigation, focus states, readable error/empty/loading states, no console errors, and a rehearsed flow under four minutes |
-| Best Ut Prosim | No-account readiness experience exists | Deliver or schedule a credible Virginia Tech community service pilot, add consented impact measurement, and show honest aggregate service and learning metrics |
-| Best Use of Gemini API | Provider integration complete but unconfigured | Add a server-side API key and valid model, perform a live coaching call, confirm limits and failure states, and show Gemini visibly in the interview flow |
+| Best Ut Prosim | No-account clinic flow, privacy-safe analytics core, and facilitator guide complete locally | Deliver or schedule a credible Virginia Tech community service pilot and report only observed aggregate outcomes |
+| Best Use of Gemini API | Provider is configured on the older deployment, but the latest live coaching smoke returned a provider failure | Validate the key/project/quota, deploy the current build, complete a live coaching call, and confirm failure states |
 | Best Domain Name | Azure hostname only | Register the final domain during the event if required, connect DNS and HTTPS, use it as the canonical URL, and retain proof of registration |
-| Deloitte x Databricks | Server adapter and navigator UI complete; live workspace and dataset pending | Query a real Databricks-managed dataset from the Hokie Career Navigator and show a reproducible aggregate impact dashboard or query |
-| GoDaddy ANS | Read-only adapter and UI complete; live access pending | Use event credentials for real search/detail calls, display registry provenance and missing trust signals, and register VibeScore if credentials and DNS validation permit |
+| Deloitte x Databricks | Secure adapter, navigator UI, sourced fallback, clinic contract, and reproducible SQL complete locally | Query a real Databricks-managed table and show the warehouse query history or dashboard during judging |
+| GoDaddy ANS | Read-only adapter, hosted MCP agent, registration helper, and UI complete; live deployment pending | Install the production key pair, verify real search/detail calls, connect the final domain, and complete DNS validation |
 
 ## 8. Joined sponsor-track experience
 
@@ -332,15 +332,15 @@ The backend currently supports:
 - `GET /api/ans/search` for registered-agent discovery;
 - `GET /api/ans/agents/:id` for a sanitized trust summary;
 - OTE and production GoDaddy HTTPS hosts only;
-- bearer-token credentials stored server-side;
+- GoDaddy developer key and secret stored server-side and sent with `sso-key` authorization;
 - timeouts, redirect rejection, bounded responses, input validation, and safe field projections;
 - an ANS search and trust-explanation UI in the Hokie experience.
 
-This is a real read-only adapter, but it remains **credential-pending** until an authorized live call succeeds.
+This is a real read-only adapter. Production credentials have been created, but it remains **deployment-pending** until the credentials are installed as app settings and an authorized live call succeeds.
 
 ### Track-complete experience
 
-1. Obtain the event PAT or ANS token and confirm the correct environment.
+1. Install the production GoDaddy developer key and secret as `ANS_API_KEY` and `ANS_API_SECRET`, with `ANS_BASE_URL=https://api.godaddy.com`.
 2. Search the live registry for an agent relevant to careers, campus services, learning, or MCP.
 3. Display its ANS name, host, lifecycle status, supported protocol, advertised capabilities, registry trust score, coverage, computed pillars, and missing signals.
 4. Display “Registry-reported identity signals; not a safety or quality guarantee.”
@@ -349,7 +349,7 @@ This is a real read-only adapter, but it remains **credential-pending** until an
    - a final custom-domain host;
    - an HTTPS MCP metadata endpoint;
    - a clear version;
-   - the `analyze_project`, `explain_report`, `recommend_drills`, `preview_publish`, and `publish_report` capabilities;
+   - the hosted `describe_scoring`, `recommend_drill`, `publish_workflow_report`, and `verify_public_profile` capabilities;
    - the required certificate-signing material and DNS challenge.
 7. Resolve or retrieve the registered VibeScore identity as the final proof.
 
@@ -359,7 +359,7 @@ GoDaddy's current ANS documentation provides registration, resolution, search, v
 
 - Preserve the current host allowlist and redirect rejection.
 - Never accept an arbitrary ANS base URL from the browser.
-- Never expose the PAT, authorization header, certificates, or private keys.
+- Never expose the developer key, secret, authorization header, certificates, or private keys.
 - Never follow response-provided links automatically.
 - Never invoke a discovered agent endpoint during the hackathon MVP.
 - Treat unknown, null, or missing signals honestly instead of converting them to zero.
@@ -429,14 +429,13 @@ The product remains useful when any sponsor service is unavailable. Core drills,
 
 ### Best Use of Gemini API
 
-The code path already exists. Remaining work:
+The provider code path and UI exist. Remaining release work:
 
-1. create or receive a Gemini API key;
-2. configure `AI_PROVIDER=gemini`, `AI_API_KEY`, and an available `AI_MODEL` server-side;
-3. deploy the settings without committing the key;
-4. perform one live coaching request;
-5. verify daily/user limits, timeout, empty-answer, and quota messaging;
-6. show Gemini helping a user reason without returning the full interview solution.
+1. validate or replace the current server-side key after the failed live provider smoke;
+2. deploy the current settings without committing the key;
+3. perform one successful live coaching request;
+4. verify daily/user limits, timeout, empty-answer, and quota messaging;
+5. show Gemini helping a user reason without returning the full interview solution.
 
 ### Best Domain Name from GoDaddy Registry
 
@@ -452,7 +451,7 @@ The code path already exists. Remaining work:
 | Input | Needed for | Handling |
 | --- | --- | --- |
 | Gemini API key and chosen available model | Live Gemini coach | Azure App Service secret only |
-| GoDaddy ANS PAT/event token and environment | Live ANS search/detail and possible registration | Server-side secret only |
+| GoDaddy production developer key and secret | Live ANS search/detail and registration | Server-side secrets only |
 | Final registered domain and registrar access | Domain category, canonical host, ANS DNS validation | User completes purchase/login; deployment receives DNS records |
 | Databricks workspace URL and approved auth method | Navigator queries and analytics | Server-side secret or sponsor-managed identity |
 | SQL warehouse ID plus catalog/schema/table names | Databricks query execution | Environment configuration, never browser input |
@@ -464,15 +463,14 @@ Do not paste secrets into chat, GitHub issues, source code, screenshots, or demo
 
 ## 15. Implementation order
 
-1. **Configure Gemini and run a live smoke test.** This is the smallest sponsor blocker.
-2. **Purchase and connect the final domain.** It unlocks the domain entry and may be required for ANS DNS validation.
-3. **Configure live ANS discovery.** Verify the existing adapter against real event responses and fix schema differences.
-4. **Create the Databricks workspace assets.** Add the resource table, aggregate outcome table, SQL warehouse, permissions, and proof query/dashboard.
-5. **Implement the navigator adapter and UI.** Retrieve Databricks records, compose with Gemini, and surface source/freshness.
-6. **Add consented clinic analytics and outbox.** Keep this off the critical user path.
-7. **Run a small Ut Prosim pilot.** Use real results only when reporting real outcomes.
-8. **Attempt VibeScore ANS registration if permitted.** Treat registration as an enhancement after discovery works.
-9. **Run the full release checklist and rehearse the four-minute demo.**
+1. **Deploy the current release and run the automated public smoke test.**
+2. **Validate Gemini with one successful live coaching request.**
+3. **Install the production ANS key pair and verify search/detail calls.**
+4. **Create the Databricks workspace assets and run one live navigator query.**
+5. **Purchase and connect the final domain.** It unlocks the domain entry and ANS DNS validation.
+6. **Run a small Ut Prosim pilot.** Use real results only when reporting real outcomes.
+7. **Register the hosted VibeScore agent and complete DNS validation.**
+8. **Run the full release checklist and rehearse the four-minute demo.**
 
 ## 16. Platform testing checklist
 
@@ -553,7 +551,7 @@ Do not paste secrets into chat, GitHub issues, source code, screenshots, or demo
 
 ### GoDaddy ANS
 
-- [ ] Disabled state is truthful when no token exists.
+- [ ] Disabled state is truthful when the GoDaddy key pair is incomplete.
 - [ ] Live OTE/production search returns and renders registered agents.
 - [ ] Live detail renders trust score, identity/integrity pillars, coverage, lifecycle, and missing signals.
 - [ ] Registry environment, provenance, and retrieval time are shown.
@@ -561,7 +559,7 @@ Do not paste secrets into chat, GitHub issues, source code, screenshots, or demo
 - [ ] Search length, page size, and agent ID validation work.
 - [ ] Redirects, non-allowlisted hosts, malformed JSON, and oversized responses are rejected.
 - [ ] 401, 403, 404, 429, timeout, and 5xx paths produce safe messages.
-- [ ] The browser never receives the PAT or raw unbounded registry payload.
+- [ ] The browser never receives the GoDaddy key, secret, or raw unbounded registry payload.
 - [ ] If registered, VibeScore resolves from ANS and the DNS challenge is verifiably complete.
 
 ### Databricks and navigator
@@ -658,59 +656,3 @@ Do not paste secrets into chat, GitHub issues, source code, screenshots, or demo
 - [Databricks app authorization](https://docs.databricks.com/aws/en/dev-tools/databricks-apps/auth)
 - [Databricks SQL warehouses](https://docs.databricks.com/aws/en/compute/sql-warehouse)
 - [Gemini API reference](https://ai.google.dev/api)
-
-## 20. Curriculum validation and interview-market findings
-
-The private calibration guide is intentionally excluded from Git because it contains strong answers and reference interview solutions. Product decisions below are safe to publish; answer keys are not.
-
-### Current calibration
-
-All twelve strong drill examples score 100 under the transparent phrase checker. Deliberately incomplete but reasonable answers currently score from 25 to 88. Five drills need rubric changes before their score is useful even as checklist feedback:
-
-| Drill | Mediocre score | Decision |
-| --- | ---: | --- |
-| Turn an idea into a build brief | 51 | Keep |
-| Bound a risky database change | 51 | Keep |
-| Build a useful context packet | 51 | Keep |
-| Write a clean agent handoff | 76 | Revise; require reproduction and production-state evidence |
-| Stop an unproductive fix loop | 76 | Revise; require a falsifiable hypothesis and second boundary check |
-| Investigate a flaky async test | 51 | Keep |
-| Test what the demo missed | 63 | Keep |
-| Verify authorization, not just login | 76 | Revise; require positive, negative, and non-disclosure checks |
-| Review a patch that weakens a test | 42 | Keep |
-| Keep retrieved text in its lane | 88 | Revise; distinguish recognition from containment and regression testing |
-| Spend context where it helps | 63 | Keep |
-| Delegate without duplicating work | 25 | Revise; award partial credit for contract and non-overlapping ownership |
-
-The original interview calibration separates incomplete implementations from correct ones: retry planner 5/8 versus 8/8, usage ledger 3/9 versus 9/9, and build waves 5/8 versus 8/8. The three repository-style rounds add six fixed tests each and keep their reference implementations executable in the same isolated runner. Keep the usage ledger as the strongest onboarding task, use retry planning as an introductory round, retain build waves as an advanced algorithmic option, and use the repository rounds to test day-to-day engineering judgment.
-
-### What current AI-assisted interviews measure
-
-Public company descriptions now converge on realistic work with AI present. Canva tells candidates in advance that AI use is expected. DoorDash describes a 60-minute engineering working session centered on reading existing code, debugging, tests, judgment, and communication. Cerebras evaluates framing, direction of the AI tool, output inspection, recovery, tradeoffs, and ownership. HackerRank describes a Plan/Build/Review structure and CodeSignal provides AI transcripts and session replay. Community reports add a consistent debrief pattern: interviewers ask candidates to explain generated code, rejected suggestions, debugging choices, and tradeoffs.
-
-This evidence supports VibeScore's six dimensions, but the current controlled interviews are still isolated pure-function problems scored only for correctness. They do not yet demonstrate the strongest market signal: working safely in an existing repository while an interviewer can inspect the process.
-
-### Delivered repository-style rounds
-
-1. **Repair an AI-generated authorization patch.** The candidate receives a route, tests, and an unsafe generated patch. Six server-side tests cover authentication, ownership, administrator access, non-disclosure, and response shape.
-2. **Extend a saved-search repository.** The candidate works from a store, API contract, and UI caller to implement a bounded cross-file feature. Six tests cover normalization, ownership, duplicate handling, limits, immutability, and stable ordering.
-3. **Debug a stale-cache incident.** The candidate receives implementation code, incident logs, and an operational note. Six tests check fresh hits, expiry, concurrent request coalescing, rejected-load cleanup, manual invalidation, and key isolation.
-4. **Challenge an AI-generated system design.** The candidate reviews an attached architecture proposal and writes a structured critique covering trust boundaries, failure recovery, observability and cost, and staged rollout. The transparent checklist provides practice feedback without treating prose keyword matching as a controlled rating.
-
-The interview workspace displays the brief and attached repository artifacts beside the editor, runs visible tests on demand, keeps hidden tests on the server, provides the Gemini coach, and saves an ownership debrief with the submission. The debrief asks the candidate to explain the final code, identify a rejected suggestion, name a remaining risk, and justify the tests. Correctness and reflection evidence stay separate in the result.
-
-Every interview should end with a short ownership debrief: explain the final code without the assistant, identify one rejected AI suggestion, name one remaining risk, and justify the tests. Correct code remains the objective floor; workflow evidence and debrief evidence should be reported as separate dimensions rather than blended into an opaque score.
-
-### Pilot decision rule
-
-Test each drill with at least five people. Keep a drill when at least four can name a concrete behavior they learned, median completion stays within the advertised time, strong answers beat mediocre answers by at least 25 points, and keyword stuffing does not pass. Revise a drill when the lesson is useful but calibration fails. Remove it when testers cannot explain how it changes real AI-assisted work or when it duplicates another drill without adding a new decision or failure mode.
-
-Research references:
-
-- [Canva: Yes, you can use AI in our interviews](https://www.canva.dev/blog/engineering/yes-you-can-use-ai-in-our-interviews/)
-- [DoorDash: rebuilding engineering interviews around AI](https://careersatdoordash.com/blog/doordash-is-rebuilding-its-engineering-interviews-around-ai/)
-- [Cerebras: AI-native engineering interviews](https://www.cerebras.ai/blog/hiring-engineers-for-an-ai-native-world)
-- [HackerRank: Plan, Build, Review](https://www.hackerrank.com/blog/how-to-interview-engineers-who-use-ai-coding-assistants/)
-- [CodeSignal: AI-assisted assessments and interviews](https://codesignal.com/blog/introducing-ai-assisted-coding-assessments-interviews/)
-- [SignalLoop open-source AI-native assessment](https://github.com/signalloop-ai/signalloop)
-- [Reddit discussion: codebase work, patch review, and validation](https://www.reddit.com/r/ClaudeCode/comments/1ru0rmi/how_has_cc_changed_how_you_interview_candidates/)

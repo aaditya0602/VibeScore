@@ -39,7 +39,10 @@ test("MCP handshake exposes local analysis, coaching, preview and guarded publis
     const explained = await client.callTool({ name: "explain_report", arguments: { report_id: report.report_id } });
     assert.equal(JSON.parse((explained.content[0] as { text: string }).text).available, true);
     const drills = await client.callTool({ name: "recommend_drills", arguments: { report_id: report.report_id } });
-    assert.ok(JSON.parse((drills.content[0] as { text: string }).text).drills.length >= 3);
+    const recommendations = JSON.parse((drills.content[0] as { text: string }).text);
+    assert.ok(recommendations.drills.length >= 3);
+    assert.equal(recommendations.practice_path, '/practice');
+    assert.match(recommendations.drills[0].practice_path, /^\/challenge\/[a-z0-9-]+$/);
     const previewed = await client.callTool({ name: "preview_publish", arguments: { report_id: report.report_id } });
     const preview = JSON.parse((previewed.content[0] as { text: string }).text);
     assert.match(preview.sha256, /^[a-f0-9]{64}$/);
