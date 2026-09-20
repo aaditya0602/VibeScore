@@ -657,3 +657,57 @@ Do not paste secrets into chat, GitHub issues, source code, screenshots, or demo
 - [Databricks app authorization](https://docs.databricks.com/aws/en/dev-tools/databricks-apps/auth)
 - [Databricks SQL warehouses](https://docs.databricks.com/aws/en/compute/sql-warehouse)
 - [Gemini API reference](https://ai.google.dev/api)
+
+## 20. Curriculum validation and interview-market findings
+
+The private calibration guide is intentionally excluded from Git because it contains strong answers and reference interview solutions. Product decisions below are safe to publish; answer keys are not.
+
+### Current calibration
+
+All twelve strong drill examples score 100 under the transparent phrase checker. Deliberately incomplete but reasonable answers currently score from 25 to 88. Five drills need rubric changes before their score is useful even as checklist feedback:
+
+| Drill | Mediocre score | Decision |
+| --- | ---: | --- |
+| Turn an idea into a build brief | 51 | Keep |
+| Bound a risky database change | 51 | Keep |
+| Build a useful context packet | 51 | Keep |
+| Write a clean agent handoff | 76 | Revise; require reproduction and production-state evidence |
+| Stop an unproductive fix loop | 76 | Revise; require a falsifiable hypothesis and second boundary check |
+| Investigate a flaky async test | 51 | Keep |
+| Test what the demo missed | 63 | Keep |
+| Verify authorization, not just login | 76 | Revise; require positive, negative, and non-disclosure checks |
+| Review a patch that weakens a test | 42 | Keep |
+| Keep retrieved text in its lane | 88 | Revise; distinguish recognition from containment and regression testing |
+| Spend context where it helps | 63 | Keep |
+| Delegate without duplicating work | 25 | Revise; award partial credit for contract and non-overlapping ownership |
+
+The interview calibration separates incomplete implementations from correct ones: retry planner 5/8 versus 8/8, usage ledger 3/9 versus 9/9, and build waves 5/8 versus 8/8. Keep the usage ledger as the strongest current task, use retry planning as onboarding, and retain build waves as an advanced algorithmic option.
+
+### What current AI-assisted interviews measure
+
+Public company descriptions now converge on realistic work with AI present. Canva tells candidates in advance that AI use is expected. DoorDash describes a 60-minute engineering working session centered on reading existing code, debugging, tests, judgment, and communication. Cerebras evaluates framing, direction of the AI tool, output inspection, recovery, tradeoffs, and ownership. HackerRank describes a Plan/Build/Review structure and CodeSignal provides AI transcripts and session replay. Community reports add a consistent debrief pattern: interviewers ask candidates to explain generated code, rejected suggestions, debugging choices, and tradeoffs.
+
+This evidence supports VibeScore's six dimensions, but the current controlled interviews are still isolated pure-function problems scored only for correctness. They do not yet demonstrate the strongest market signal: working safely in an existing repository while an interviewer can inspect the process.
+
+### Rounds to add
+
+1. **AI patch review and repair — highest priority.** Give the candidate a small existing repository and an AI-generated patch containing a subtle contract regression, missing authorization check, or race. Score issue discovery, evidence, minimal repair, regression tests, and explanation.
+2. **Repository feature round — highest priority.** Ask the candidate to add a bounded feature across two or three existing files. Capture the initial plan, context selection, assistant transcript, tests, diff, and final debrief. This becomes the flagship AI-assisted interview.
+3. **Incident debugging round — next.** Provide a failing test plus logs with irrelevant noise. Score hypothesis quality, tool use, controlled reproduction, smallest justified change, and verification.
+4. **System-design critique — later.** Let AI draft an architecture, then ask the candidate to challenge failure modes, data boundaries, cost, observability, and rollout. Use a human-readable rubric because deterministic code tests cannot grade this fairly.
+
+Every interview should end with a short ownership debrief: explain the final code without the assistant, identify one rejected AI suggestion, name one remaining risk, and justify the tests. Correct code remains the objective floor; workflow evidence and debrief evidence should be reported as separate dimensions rather than blended into an opaque score.
+
+### Pilot decision rule
+
+Test each drill with at least five people. Keep a drill when at least four can name a concrete behavior they learned, median completion stays within the advertised time, strong answers beat mediocre answers by at least 25 points, and keyword stuffing does not pass. Revise a drill when the lesson is useful but calibration fails. Remove it when testers cannot explain how it changes real AI-assisted work or when it duplicates another drill without adding a new decision or failure mode.
+
+Research references:
+
+- [Canva: Yes, you can use AI in our interviews](https://www.canva.dev/blog/engineering/yes-you-can-use-ai-in-our-interviews/)
+- [DoorDash: rebuilding engineering interviews around AI](https://careersatdoordash.com/blog/doordash-is-rebuilding-its-engineering-interviews-around-ai/)
+- [Cerebras: AI-native engineering interviews](https://www.cerebras.ai/blog/hiring-engineers-for-an-ai-native-world)
+- [HackerRank: Plan, Build, Review](https://www.hackerrank.com/blog/how-to-interview-engineers-who-use-ai-coding-assistants/)
+- [CodeSignal: AI-assisted assessments and interviews](https://codesignal.com/blog/introducing-ai-assisted-coding-assessments-interviews/)
+- [SignalLoop open-source AI-native assessment](https://github.com/signalloop-ai/signalloop)
+- [Reddit discussion: codebase work, patch review, and validation](https://www.reddit.com/r/ClaudeCode/comments/1ru0rmi/how_has_cc_changed_how_you_interview_candidates/)
