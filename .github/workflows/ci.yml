@@ -13,11 +13,32 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22.20.0
           cache: npm
       - run: npm ci
       - run: npm run build
       - run: npm test
+      - run: npm audit --omit=dev --audit-level=high
+      - name: Smoke production server
+        env:
+          PUBLIC_ORIGIN: http://127.0.0.1:8787
+          VIBESCORE_DATA_DIR: ${{ runner.temp }}/vibescore-data
+          CLINIC_PSEUDONYM_SECRET: ci-only-pseudonym-secret-at-least-32-characters
+        run: |
+          npm start > "${RUNNER_TEMP}/vibescore-server.log" 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:8787/api/status >/dev/null; then
+              break
+            fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then
+              cat "${RUNNER_TEMP}/vibescore-server.log"
+              exit 1
+            fi
+            sleep 1
+          done
+          npm run smoke -- http://127.0.0.1:8787

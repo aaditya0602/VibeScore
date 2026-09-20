@@ -29,7 +29,7 @@ assert(status.ans && typeof status.ans.enabled === 'boolean', '/api/status is mi
 assert(status.databricks && typeof status.databricks.enabled === 'boolean', '/api/status is missing Databricks status.');
 
 const catalog = JSON.parse(await read('/api/challenges'));
-assert(Array.isArray(catalog.challenges) && catalog.challenges.length === 15, 'Expected 12 drills and 3 interviews.');
+assert(Array.isArray(catalog.challenges) && catalog.challenges.length === 19, 'Expected 13 drills and 6 interviews.');
 assert(!JSON.stringify(catalog).includes('hidden'), 'Challenge catalog exposed hidden judge data.');
 
 const metadata = JSON.parse(await read('/.well-known/mcp.json'));
