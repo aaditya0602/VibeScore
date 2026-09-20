@@ -12,7 +12,7 @@ Built for **VTHacks 14**.
 VibeScore provides two complementary paths:
 
 1. **Measure real AI-assisted work.** A local collector and MCP server analyze explicitly selected Claude Code and Codex sessions. They derive workflow signals without uploading raw prompts, source code, paths, or filenames.
-2. **Practise and prove AI-building skills.** Twelve focused drills cover framing, context, debugging, verification, review, and efficiency. Three timed JavaScript interview rounds combine an AI coach with objective server-side tests.
+2. **Practise and prove AI-building skills.** Thirteen focused drills cover framing, context, debugging, verification, review, architecture, and efficiency. Six timed JavaScript interview rounds combine an AI coach, realistic workspace files, objective server-side tests, and an ownership debrief.
 
 Users can keep their profile private or publish separate challenge and workflow scores to the leaderboard. Imported workflow evidence remains provisional; controlled interview results are assessed independently.
 
@@ -25,7 +25,8 @@ The VTHacks build includes:
 - Gemini-powered interview coaching when a Gemini API key is configured.
 - A GoDaddy Agent Name Service trust explorer for discovering registered agents and reviewing registry trust signals.
 - A Databricks SQL-backed Hokie Career Navigator for matching skill gaps to curated campus and career resources.
-- A privacy-first MCP flow with report explanation, drill recommendations, publish preview, and confirmation-bound publishing.
+- A privacy-first MCP flow with explicit Claude Code and Codex session discovery, local analysis, report explanation, drill recommendations, publish preview, and confirmation-bound publishing.
+- A guided Connect page that issues a one-time API token and generates ready-to-copy Codex and Claude Code MCP configuration.
 
 The project targets **Overall**, **Best UI/UX**, **Best Ut Prosim**, **Best Use of Gemini API**, **Best Domain Name**, **Deloitte x Databricks AI Agent for the Virginia Tech Student Experience**, and **GoDaddy Best Use of ANS**.
 
@@ -104,13 +105,16 @@ npm run mcp
 
 Configure an MCP client to execute `node` with the absolute path to `collector/src/mcp.ts`. The server exposes:
 
+- `find_project_sessions`
 - `analyze_project`
 - `explain_report`
 - `recommend_drills`
 - `preview_publish`
 - `publish_report`
 
-Analysis is limited to the project and session files supplied to the tool. Publishing requires a preview digest and explicit confirmation. Set `VIBESCORE_SERVER`, `VIBESCORE_HANDLE`, and `VIBESCORE_TOKEN` in the MCP process environment to publish an aggregate report.
+Session discovery searches only the standard local Claude Code and Codex history locations, matches the selected project, and returns file paths without analyzing or uploading them. Analysis remains limited to the project and session files supplied to the tool. Publishing requires a preview digest and explicit confirmation.
+
+After signing in, open `/connect` to generate a one-time connection token and copy the prepared Codex or Claude Code configuration. The token is stored only in the local MCP process environment. The server receives a validated numeric aggregate; prompts, source code, commands, paths, and filenames stay local.
 
 ## Privacy and security
 

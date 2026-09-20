@@ -3,9 +3,9 @@ import assert from "node:assert/strict";
 import { assessDrill, gradeInterview } from "../src/assessment.ts";
 import { getPrivateDrill, getPrivateInterview, getPublicChallenge, listChallenges } from "../src/challenges.ts";
 
-test("catalog has twelve drills and three JavaScript interview tasks", () => {
-  assert.equal(listChallenges("drill").length, 12);
-  assert.equal(listChallenges("interview").length, 3);
+test("catalog has thirteen drills and six JavaScript interview tasks", () => {
+  assert.equal(listChallenges("drill").length, 13);
+  assert.equal(listChallenges("interview").length, 6);
   for (const challenge of listChallenges("interview")) {
     assert.equal(challenge.functionName, "solve");
     assert.ok(challenge.starterCode?.includes("function solve"));
@@ -17,7 +17,7 @@ test("public challenge projections do not expose judge examples, solutions, or t
     const json = JSON.stringify(getPublicChallenge(privateDrill.id));
     assert.ok(!json.includes(privateDrill.strongExample));
     assert.ok(!json.includes(privateDrill.weakExample));
-    assert.ok(!json.includes("signals"));
+    assert.ok(getPublicChallenge(privateDrill.id)?.rubric.every((criterion:any)=>!("signals" in criterion)));
   }
   for (const privateInterview of listChallenges("interview").map(({ id }) => getPrivateInterview(id)!)) {
     const json = JSON.stringify(getPublicChallenge(privateInterview.id));
@@ -27,6 +27,15 @@ test("public challenge projections do not expose judge examples, solutions, or t
       assert.ok(!json.includes(hidden.id));
       assert.ok(!json.includes(JSON.stringify(hidden)));
     }
+  }
+});
+
+test("every interview reference solution passes its fixed test environment", async () => {
+  const { runCode } = await import('../src/runner.ts');
+  for (const publicInterview of listChallenges('interview')) {
+    const interview = getPrivateInterview(publicInterview.id)!;
+    const results = await runCode(interview.referenceSolution, interview.tests);
+    assert.equal(results.filter(({passed})=>passed).length, interview.tests.length, interview.id);
   }
 });
 

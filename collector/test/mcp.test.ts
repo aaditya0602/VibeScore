@@ -12,6 +12,8 @@ process.env.VIBESCORE_HOME = join(tmp, "config");
 const project = join(tmp, "project");
 mkdirSync(project);
 const session = join(tmp, "explicit.jsonl");
+process.env.VIBESCORE_CLAUDE_SESSIONS_DIR = tmp;
+process.env.VIBESCORE_CODEX_SESSIONS_DIR = join(tmp, 'missing-codex');
 const stamp = (second: number) => new Date(Date.UTC(2026, 0, 1, 0, 0, second)).toISOString();
 writeFileSync(session, [
   { type: "user", uuid: "u1", parentUuid: null, sessionId: "s1", timestamp: stamp(0), cwd: project, message: { role: "user", content: "Implement a useful feature with tests" } },
@@ -24,7 +26,11 @@ test("MCP handshake exposes local analysis, coaching, preview and guarded publis
   await Promise.all([client.connect(clientTransport), server.connect(serverTransport)]);
   try {
     const tools = await client.listTools();
-    assert.deepEqual(tools.tools.map((tool) => tool.name).sort(), ["analyze_project", "explain_report", "preview_publish", "publish_report", "recommend_drills"]);
+    assert.deepEqual(tools.tools.map((tool) => tool.name).sort(), ["analyze_project", "explain_report", "find_project_sessions", "preview_publish", "publish_report", "recommend_drills"]);
+    const discovered = await client.callTool({ name: "find_project_sessions", arguments: { root: project, agents:['claude-code'] } });
+    const discovery = JSON.parse((discovered.content[0] as { text: string }).text);
+    assert.equal(discovery.sources.length,1);
+    assert.equal(discovery.sources[0].agent,'claude-code');
     const analyzed = await client.callTool({ name: "analyze_project", arguments: { root: project, sessions: [{ agent: "claude-code", file: session }] } });
     const report = JSON.parse((analyzed.content[0] as { text: string }).text);
     assert.equal(report.session_count, 1);

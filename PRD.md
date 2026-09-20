@@ -94,14 +94,15 @@ Students also lack a clear bridge from “I use AI” to credible evidence that 
 | --- | --- | --- |
 | Public application | Responsive single-page product with landing, practice, privacy, leaderboard, profiles, and settings | `web/src/app.js`, `backend/public` |
 | Accounts | Registration, secure sessions, login, recovery code, visibility controls, and cascading deletion | `backend/src/store.ts`, `backend/src/server.ts` |
-| Curriculum | Twelve drills across framing, context, debugging, verification, review, and efficiency | `backend/src/challenges.ts` |
-| Interviews | Three timed JavaScript interview rounds with visible and hidden tests | `backend/src/challenges.ts`, `backend/src/assessment.ts` |
+| Curriculum | Thirteen drills across framing, context, debugging, verification, review, architecture, and efficiency | `backend/src/challenges.ts` |
+| Interviews | Six timed JavaScript interview rounds with workspace artifacts, visible and hidden tests, and an ownership debrief | `backend/src/challenges.ts`, `backend/src/assessment.ts` |
 | Safe execution | QuickJS worker with time and memory limits and no Node.js, filesystem, process, environment, or network APIs | `backend/src/runner.ts` |
 | Assessment | Transparent drill feedback and objective interview grading | `backend/src/assessment.ts` |
 | Ratings | Separate controlled challenge rating and provisional workflow rating | `backend/src/platform-store.ts`, `backend/src/scoring.ts` |
 | Profiles and leaderboard | Private-by-default profiles with opt-in public challenge and workflow leaderboards | `backend/src/platform-store.ts`, `web/src/app.js` |
 | Local collector | Claude Code and Codex parsing, project identity, episode generation, feature extraction, comparison, and self-contained report | `collector/src` |
-| MCP | Analyze, explain, recommend, preview publish, and confirmation-bound publish tools | `collector/src/mcp.ts` |
+| MCP | Explicit local session discovery, analysis, explanation, recommendations, publish preview, and confirmation-bound publish tools | `collector/src/mcp.ts` |
+| Workflow connection | Signed-in Connect page, one-time API-token rotation, copyable Codex and Claude Code configuration, and private dashboard score | `backend/src/server.ts`, `/connect` in `web/src/app.js` |
 | Gemini adapter | Server-side Gemini-compatible coaching provider with limits and graceful error handling | `backend/src/providers.ts` |
 | Hokie path | No-account, three-question readiness check with a recommended next drill | `/hokie` in `web/src/app.js` |
 | ANS explorer | Read-only registered-agent search and trust-detail adapter with browser UI | `backend/src/ans.ts`, `/hokie` in `web/src/app.js` |
@@ -681,7 +682,7 @@ All twelve strong drill examples score 100 under the transparent phrase checker.
 | Spend context where it helps | 63 | Keep |
 | Delegate without duplicating work | 25 | Revise; award partial credit for contract and non-overlapping ownership |
 
-The interview calibration separates incomplete implementations from correct ones: retry planner 5/8 versus 8/8, usage ledger 3/9 versus 9/9, and build waves 5/8 versus 8/8. Keep the usage ledger as the strongest current task, use retry planning as onboarding, and retain build waves as an advanced algorithmic option.
+The original interview calibration separates incomplete implementations from correct ones: retry planner 5/8 versus 8/8, usage ledger 3/9 versus 9/9, and build waves 5/8 versus 8/8. The three repository-style rounds add six fixed tests each and keep their reference implementations executable in the same isolated runner. Keep the usage ledger as the strongest onboarding task, use retry planning as an introductory round, retain build waves as an advanced algorithmic option, and use the repository rounds to test day-to-day engineering judgment.
 
 ### What current AI-assisted interviews measure
 
@@ -689,12 +690,14 @@ Public company descriptions now converge on realistic work with AI present. Canv
 
 This evidence supports VibeScore's six dimensions, but the current controlled interviews are still isolated pure-function problems scored only for correctness. They do not yet demonstrate the strongest market signal: working safely in an existing repository while an interviewer can inspect the process.
 
-### Rounds to add
+### Delivered repository-style rounds
 
-1. **AI patch review and repair — highest priority.** Give the candidate a small existing repository and an AI-generated patch containing a subtle contract regression, missing authorization check, or race. Score issue discovery, evidence, minimal repair, regression tests, and explanation.
-2. **Repository feature round — highest priority.** Ask the candidate to add a bounded feature across two or three existing files. Capture the initial plan, context selection, assistant transcript, tests, diff, and final debrief. This becomes the flagship AI-assisted interview.
-3. **Incident debugging round — next.** Provide a failing test plus logs with irrelevant noise. Score hypothesis quality, tool use, controlled reproduction, smallest justified change, and verification.
-4. **System-design critique — later.** Let AI draft an architecture, then ask the candidate to challenge failure modes, data boundaries, cost, observability, and rollout. Use a human-readable rubric because deterministic code tests cannot grade this fairly.
+1. **Repair an AI-generated authorization patch.** The candidate receives a route, tests, and an unsafe generated patch. Six server-side tests cover authentication, ownership, administrator access, non-disclosure, and response shape.
+2. **Extend a saved-search repository.** The candidate works from a store, API contract, and UI caller to implement a bounded cross-file feature. Six tests cover normalization, ownership, duplicate handling, limits, immutability, and stable ordering.
+3. **Debug a stale-cache incident.** The candidate receives implementation code, incident logs, and an operational note. Six tests check fresh hits, expiry, concurrent request coalescing, rejected-load cleanup, manual invalidation, and key isolation.
+4. **Challenge an AI-generated system design.** The candidate reviews an attached architecture proposal and writes a structured critique covering trust boundaries, failure recovery, observability and cost, and staged rollout. The transparent checklist provides practice feedback without treating prose keyword matching as a controlled rating.
+
+The interview workspace displays the brief and attached repository artifacts beside the editor, runs visible tests on demand, keeps hidden tests on the server, provides the Gemini coach, and saves an ownership debrief with the submission. The debrief asks the candidate to explain the final code, identify a rejected suggestion, name a remaining risk, and justify the tests. Correctness and reflection evidence stay separate in the result.
 
 Every interview should end with a short ownership debrief: explain the final code without the assistant, identify one rejected AI suggestion, name one remaining risk, and justify the tests. Correct code remains the objective floor; workflow evidence and debrief evidence should be reported as separate dimensions rather than blended into an opaque score.
 

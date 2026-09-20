@@ -5,7 +5,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { pathToFileURL } from "node:url";
-import { analyzeProject, explainReport, recommendDrills, type ProjectAnalysis } from "./analyze.ts";
+import { analyzeProject, explainReport, findProjectSessions, recommendDrills, type ProjectAnalysis } from "./analyze.ts";
 import { parseBundle } from "../../backend/src/validation.ts";
 
 export const server = new McpServer({ name: "vibescore", version: "0.2.0" });
@@ -24,6 +24,11 @@ server.registerTool("analyze_project", {
   while (reports.size > 20) reports.delete(reports.keys().next().value!);
   return asText(report);
 });
+
+server.registerTool("find_project_sessions", {
+  description: "After an explicit user request, find Claude Code and Codex JSONL sessions whose project metadata matches one absolute repository path. Returns local paths only and does not analyze or upload them.",
+  inputSchema: { root: z.string().min(1), agents: z.array(z.enum(["claude-code", "codex"])).min(1).max(2).optional(), limit: z.number().int().min(1).max(32).optional() },
+}, async ({ root, agents, limit }) => asText(await findProjectSessions(root, agents, limit)));
 
 server.registerTool("explain_report", {
   description: "Explain the provisional evidence and limitations of a report from this MCP session.",

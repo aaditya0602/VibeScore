@@ -1,6 +1,7 @@
 /** Project-scoped local analysis. Never executes project code or scans global logs. */
 import { lstat, readdir, realpath } from "node:fs/promises";
 import { isAbsolute, join, extname, basename } from "node:path";
+import { homedir } from "node:os";
 import { randomUUID } from "node:crypto";
 import { parseSessionFile, projectIdentity } from "./parse.ts";
 import { parseCodexSessionFile } from "./parse-codex.ts";
@@ -10,6 +11,7 @@ import { summarize, buildBundle, type Bundle } from "./report.ts";
 import type { ParsedSession } from "./schema.ts";
 
 export interface SessionSource { agent: "claude-code" | "codex"; file: string }
+export interface SessionDiscovery { root: string; sources: SessionSource[]; scanned: number; truncated: boolean; }
 export interface ProjectAnalysis {
   report_id: string;
   assessment: "provisional";
@@ -22,6 +24,49 @@ export interface ProjectAnalysis {
 
 const SKIP = new Set([".git", "node_modules", ".venv", "venv", "vendor", "dist", "build", ".next", "coverage", ".codex", ".claude"]);
 const LANGUAGES: Record<string, string> = { ".ts": "typescript", ".tsx": "typescript", ".js": "javascript", ".jsx": "javascript", ".mjs": "javascript", ".py": "python", ".go": "go", ".rs": "rust", ".java": "java", ".cs": "csharp", ".rb": "ruby", ".cpp": "cpp", ".c": "c", ".swift": "swift", ".kt": "kotlin" };
+
+async function jsonlFiles(root: string, cap = 5000): Promise<{ files: string[]; scanned: number; truncated: boolean }> {
+  const files: string[] = [], pending = [root]; let scanned = 0, truncated = false;
+  while (pending.length && scanned < cap) {
+    const dir = pending.pop()!; let entries;
+    try { entries = await readdir(dir, { withFileTypes: true }); } catch { continue; }
+    for (const entry of entries) {
+      if (++scanned > cap) { truncated = true; break; }
+      const path = join(dir, entry.name);
+      if (entry.isSymbolicLink()) continue;
+      if (entry.isDirectory()) pending.push(path);
+      else if (entry.isFile() && entry.name.endsWith('.jsonl')) files.push(path);
+    }
+  }
+  if (pending.length) truncated = true;
+  return { files, scanned, truncated };
+}
+
+/** Explicit local discovery only. Returns matching paths; it never analyzes or uploads them. */
+export async function findProjectSessions(root: string, agents: ("claude-code" | "codex")[] = ["claude-code", "codex"], limit = 32): Promise<SessionDiscovery> {
+  if (!isAbsolute(root)) throw new Error("Project root must be an absolute directory path.");
+  const canonicalRoot = await realpath(root), projectHash = projectIdentity(canonicalRoot);
+  if (!(await lstat(canonicalRoot)).isDirectory()) throw new Error("Project root must be a directory.");
+  const bounded = Math.max(1, Math.min(32, Math.floor(limit))), sources: SessionSource[] = [];
+  let scanned = 0, truncated = false;
+  const roots: { agent: "claude-code" | "codex"; dir: string }[] = [];
+  if (agents.includes('claude-code')) roots.push({agent:'claude-code',dir:process.env.VIBESCORE_CLAUDE_SESSIONS_DIR || join(homedir(),'.claude','projects')});
+  if (agents.includes('codex')) roots.push({agent:'codex',dir:process.env.VIBESCORE_CODEX_SESSIONS_DIR || join(homedir(),'.codex','sessions')});
+  for (const sourceRoot of roots) {
+    const found = await jsonlFiles(sourceRoot.dir); scanned += found.scanned; truncated ||= found.truncated;
+    for (const file of found.files) {
+      if (sources.length >= bounded) { truncated = true; break; }
+      try {
+        const info = await lstat(file); if (info.size > 32 * 1024 * 1024) continue;
+        const parsed = sourceRoot.agent === 'codex' ? await parseCodexSessionFile(file) : await parseSessionFile(file, basename(canonicalRoot));
+        if (!parsed?.localCwd) continue;
+        let sessionRoot = parsed.localCwd; try { sessionRoot = await realpath(sessionRoot); } catch {}
+        if (projectIdentity(sessionRoot) === projectHash) sources.push({agent:sourceRoot.agent,file:await realpath(file)});
+      } catch { /* malformed or inaccessible history is skipped */ }
+    }
+  }
+  return {root:canonicalRoot,sources,scanned,truncated};
+}
 
 async function repositoryIndicators(root: string): Promise<ProjectAnalysis["repository"]> {
   const result = { files: 0, source_files: 0, test_files: 0, documentation_files: 0,

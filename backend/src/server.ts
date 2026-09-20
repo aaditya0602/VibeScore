@@ -5,7 +5,7 @@ import { extname, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
   deleteUser, getUser, loadPublicPopulation, loginUser, parseBundle, recoverAccount,
-  registerUser, revokeToken, saveBundle, scoreHistory, setVisibility, userByToken, validHandle, validPassword,
+  registerUser, revokeToken, rotateToken, loadBundle, saveBundle, scoreHistory, setVisibility, userByToken, validHandle, validPassword,
   ValidationError,
 } from './store.ts';
 import { scorePopulation, ALGO_VERSION } from './scoring.ts';
@@ -70,6 +70,11 @@ async function api(req:IncomingMessage,res:ServerResponse,url:URL){
   if(method==='POST'&&path==='/api/logout'){const current=token(req);if(current)revokeToken(current);return json(res,200,{ok:true},{'set-cookie':sessionCookie('',0)});}
   if(method==='POST'&&path==='/api/recover'){rate(req,'auth',8,30*60_000);const input=await body(req);const recovered=recoverAccount(text(input.handle,24,'handle'),text(input.recoveryCode,256,'recovery code'),text(input.newPassword,128,'password'));if(!recovered)throw new HttpError(400,'Recovery details are invalid.');return json(res,200,{recoveryCode:recovered.recoveryCode,notice:'Save this replacement recovery code. It is shown once.'},{'set-cookie':sessionCookie(recovered.token)});}
   if(method==='GET'&&path==='/api/me'){const {user}=requireUser(req);return json(res,200,{user,summary:challengeSummary(user.handle),attempts:attemptsFor(user.handle).map(a=>({...a,answer:undefined,code:undefined,reflection:undefined}))});}
+  if(method==='GET'&&path==='/api/workflow'){
+    const {user}=requireUser(req),bundle=loadBundle(user.handle),history=scoreHistory(user.handle,20),latest=history[0]??null;
+    return json(res,200,{connected:Boolean(bundle),latest,history,bundle:bundle?{agent:bundle.agent,generatedAt:bundle.generatedAt,projects:bundle.projects.length,overall:{episodes:bundle.overall.episodes,promptCount:bundle.overall.promptCount,activeMinutes:bundle.overall.activeMinutes,correctionRatio:bundle.overall.correctionRatio,firstPromptContextScore:bundle.overall.firstPromptContextScore,loopBurnFraction:bundle.overall.loopBurnFraction,toolSuccessRate:bundle.overall.toolSuccessRate,verifyAfterEditRatio:bundle.overall.verifyAfterEditRatio,errorRecoveryRate:bundle.overall.errorRecoveryRate,agenticLeverage:bundle.overall.agenticLeverage}}:null});
+  }
+  if(method==='POST'&&path==='/api/me/api-token'){const {user}=requireUser(req);rate(req,`api-token:${user.handle}`,5,60*60_000);return json(res,201,{token:rotateToken(user.handle),notice:'This connection token is shown once. Generating another token revokes the previous one.'});}
   if(method==='PATCH'&&path==='/api/me'){const {user}=requireUser(req),input=await body(req);if(typeof input.isPublic!=='boolean')throw new HttpError(400,'isPublic must be true or false.');return json(res,200,{user:setVisibility(user.handle,input.isPublic)});}
   if(method==='DELETE'&&path==='/api/me'){const {user}=requireUser(req),input=await body(req);if(input.confirmHandle!==user.handle)throw new HttpError(400,'Type your exact handle to delete the account.');clearPlatformUser(user.handle);deleteUser(user.handle);return json(res,200,{deleted:true},{'set-cookie':sessionCookie('',0)});}
   if(method==='GET'&&path==='/api/challenges'){const kind=url.searchParams.get('kind');if(kind&&kind!=='drill'&&kind!=='interview')throw new HttpError(400,'Unknown challenge kind.');return json(res,200,{challenges:listChallenges(kind as any||undefined)});}
