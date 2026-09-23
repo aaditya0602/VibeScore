@@ -24,9 +24,7 @@ test('public beta API supports account, catalog, drill and interview flows witho
     call=await api('/api/challenges');const challenges=call.data.challenges;assert.equal(challenges.length,19);assert.doesNotMatch(JSON.stringify(call.data),/referenceSolution|strongExample|hidden/);
     call=await api('/api/workflow');assert.equal(call.response.status,200);assert.equal(call.data.connected,false);assert.equal(call.data.latest,null);
     call=await api('/api/me/api-token',{method:'POST'});assert.equal(call.response.status,201);assert.match(call.data.token,/^[A-Za-z0-9_-]{40,}$/);
-    call=await api('/api/status');assert.equal(call.data.databricks.enabled,false);assert.equal(call.data.ans.enabled,false);
-    call=await api('/api/navigator/recommend',{method:'POST',body:JSON.stringify({goal:'software interview',skill:'unknown'})});assert.equal(call.response.status,400);
-    call=await api('/api/navigator/recommend',{method:'POST',body:JSON.stringify({goal:'software interview',skill:'verification'})});assert.equal(call.response.status,503);assert.match(call.data.error,/not configured/);
+    call=await api('/api/status');assert.equal(call.data.ok,true);assert.deepEqual(Object.keys(call.data).sort(),['ai','algoVersion','ok','version']);
     const drill=challenges.find((x:any)=>x.kind==='drill');
     call=await api(`/api/challenges/${drill.id}/start`,{method:'POST',body:JSON.stringify({mode:'practice'})});const drillAttempt=call.data.attempt.id;
     call=await api(`/api/attempts/${drillAttempt}/submit`,{method:'POST',body:JSON.stringify({answer:'First clarify the user, constraints, tests, and a small plan.'})});
