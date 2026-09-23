@@ -1,0 +1,22 @@
+# Litestream replication config for VibeScore.
+# Reference: https://litestream.io/reference/config/
+# All ${VAR} references are expanded from the process environment at startup.
+
+# Global snapshot policy (applies to every db below). Sized for a free 10 GB
+# Backblaze B2 bucket: keep a fresh full snapshot roughly once a day and prune
+# anything older than a week so storage stays small on a single small SQLite db.
+snapshot:
+  interval: 24h
+  retention: 168h
+
+dbs:
+  - path: ${VIBESCORE_DATA_DIR}/vibescore.sqlite
+    replica:
+      type: s3
+      bucket: ${LITESTREAM_BUCKET}
+      path: vibescore
+      endpoint: ${LITESTREAM_ENDPOINT}
+      region: ${LITESTREAM_REGION}
+      access-key-id: ${LITESTREAM_ACCESS_KEY_ID}
+      secret-access-key: ${LITESTREAM_SECRET_ACCESS_KEY}
+      sync-interval: 1s

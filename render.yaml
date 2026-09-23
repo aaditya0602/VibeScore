@@ -1,0 +1,50 @@
+# Render Blueprint for VibeScore.
+# Docs: https://render.com/docs/blueprint-spec
+#
+# Deploys as a single Docker web service on the free plan. The SQLite file
+# lives on the container's ephemeral filesystem and is continuously
+# replicated to S3-compatible object storage via Litestream, which restores
+# it on boot. See docs/DEPLOY.md for setup steps.
+services:
+  - name: vibescore
+    type: web
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/status
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: VIBESCORE_DATA_DIR
+        value: /data
+      - key: TRUST_PROXY
+        value: "1"
+      # Optional. The server defaults to Render's injected RENDER_EXTERNAL_URL
+      # (https://<service>.onrender.com). Set only when using a custom domain.
+      - key: PUBLIC_ORIGIN
+        sync: false
+      # Backblaze B2 (or any S3-compatible) bucket Litestream replicates to.
+      - key: LITESTREAM_BUCKET
+        sync: false
+      - key: LITESTREAM_ENDPOINT
+        sync: false
+      - key: LITESTREAM_REGION
+        sync: false
+      - key: LITESTREAM_ACCESS_KEY_ID
+        sync: false
+      - key: LITESTREAM_SECRET_ACCESS_KEY
+        sync: false
+      # AI coach (optional). Defaults target Gemini's free tier.
+      - key: AI_PROVIDER
+        value: gemini
+      - key: AI_API_KEY
+        sync: false
+      - key: AI_MODEL
+        sync: false
+      - key: AI_DAILY_REQUEST_LIMIT
+        value: "200"
+      - key: AI_USER_DAILY_REQUEST_LIMIT
+        value: "20"
+      - key: AI_MAX_OUTPUT_TOKENS
+        value: "1200"
