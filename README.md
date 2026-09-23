@@ -1,52 +1,31 @@
 # VibeScore
 
-**The skill layer for building with AI.** VibeScore measures how developers use AI on real projects, turns weak spots into targeted practice, and provides controlled interview rounds that can support a public skills profile.
-
-Built for **VTHacks 14**.
-
-- **Live beta:** [vibescore-vthacks-2026.azurewebsites.net](https://vibescore-vthacks-2026.azurewebsites.net)
-- **Hokie experience:** [vibescore-vthacks-2026.azurewebsites.net/hokie](https://vibescore-vthacks-2026.azurewebsites.net/hokie)
+**The skill layer for building with AI.** VibeScore measures how you actually work with coding agents, turns weak spots into targeted practice, and lets you prove your skill through controlled, objectively graded interview rounds — with a public profile you choose to share.
 
 ## What it does
 
-VibeScore provides two complementary paths:
+VibeScore keeps two kinds of evidence separate, so the score means something:
 
-1. **Measure real AI-assisted work.** A local collector and MCP server analyze explicitly selected Claude Code and Codex sessions. They derive workflow signals without uploading raw prompts, source code, paths, or filenames.
-2. **Practise and prove AI-building skills.** Thirteen focused drills cover framing, context, debugging, verification, review, architecture, and efficiency. Six timed JavaScript interview rounds combine an AI coach, realistic workspace files, objective server-side tests, and an ownership debrief.
+1. **Workflow evidence — measure real AI-assisted work.** A local collector and MCP server analyze Claude Code and Codex sessions you explicitly select. They reduce each session to numeric workflow signals (correction loops, context quality, verification habits, delivery) on your machine. Raw prompts, source code, commands, paths, and filenames never leave it. Imported evidence is scored against the population and always stays *provisional*.
+2. **Challenge evidence — practise and prove skill.** Thirteen focused drills cover framing, context, debugging, verification, review, and efficiency. Six timed coding interviews combine an AI coach, realistic workspace files, objective server-side tests, and an ownership debrief. Controlled first attempts produce the assessed public rating.
 
-Users can keep their profile private or publish separate challenge and workflow scores to the leaderboard. Imported workflow evidence remains provisional; controlled interview results are assessed independently.
-
-## Hackathon experience
-
-The VTHacks build includes:
-
-- A polished responsive application with account recovery, privacy controls, dashboards, profiles, and leaderboards.
-- A no-account **Hokie AI Builder Readiness Check** that recommends a focused next drill.
-- Gemini-powered interview coaching when a Gemini API key is configured.
-- A GoDaddy Agent Name Service trust explorer for discovering registered agents and reviewing registry trust signals.
-- A Databricks SQL-backed Hokie Career Navigator for matching skill gaps to curated campus and career resources.
-- A privacy-first MCP flow with explicit Claude Code and Codex session discovery, local analysis, report explanation, drill recommendations, publish preview, and confirmation-bound publishing.
-- A guided Connect page that issues a one-time API token and generates ready-to-copy Codex and Claude Code MCP configuration.
-
-The project targets **Overall**, **Best UI/UX**, **Best Ut Prosim**, **Best Use of Gemini API**, **Best Domain Name**, **Deloitte x Databricks AI Agent for the Virginia Tech Student Experience**, and **GoDaddy Best Use of ANS**.
-
-## Product flow
+New visitors can take the no-account **AI Builder Readiness Check** at `/check`, which recommends a first drill.
 
 ```text
-Choose a project or challenge
+Choose a project or a challenge
         ↓
-Collect private workflow evidence or complete a controlled task
+Collect private workflow evidence, or complete a controlled task
         ↓
-Receive a score, explanation, and recommended drill
+Get a score, an explanation, and a recommended drill
         ↓
 Practise with an AI coach and objective tests
         ↓
-Keep the result private or publish it to a profile
+Keep results private, or publish them to your profile
 ```
 
 ## Run locally
 
-Requirements: Node.js 22.20 or newer and npm.
+Requirements: Node.js 22.20+ and npm.
 
 ```powershell
 npm install
@@ -55,13 +34,11 @@ npm run build
 npm start
 ```
 
-Open [http://localhost:8787](http://localhost:8787).
+Open [http://localhost:8787](http://localhost:8787). Data is stored in a SQLite database under `backend/data` by default; set `VIBESCORE_DATA_DIR` to change the location.
 
-The application stores its SQLite database in `backend/data` by default. Set `VIBESCORE_DATA_DIR` to use another persistent location.
+## Configure the AI coach (optional)
 
-## Configure the AI coach
-
-The core challenges and code runner work without an AI provider. For Gemini:
+Challenges, the code runner, and scoring all work without an AI provider. To enable the coach and semantic drill review, add a server-side key — Gemini has a free tier ([Google AI Studio](https://aistudio.google.com/apikey)):
 
 ```dotenv
 AI_PROVIDER=gemini
@@ -69,70 +46,60 @@ AI_API_KEY=your-server-side-key
 AI_MODEL=gemini-3.8-flash
 ```
 
-The provider key remains server-side. Z.ai and Azure OpenAI-compatible endpoints are also supported; see [.env.example](.env.example) for every setting.
+Any OpenAI-compatible chat-completions endpoint also works; see [.env.example](.env.example). Keys stay on the server and never reach the browser. Daily request limits cap spend per deployment and per user. Note that on Gemini's free tier Google may use request content (coach messages, drill answers) to improve its products; workflow telemetry is never sent to the provider.
 
-## Configure GoDaddy ANS
+## Deploy
 
-```dotenv
-ANS_BASE_URL=https://api.ote-godaddy.com
-ANS_API_TOKEN=your-event-or-ote-token
-```
+VibeScore runs free on a Render web service (Docker), with the SQLite database continuously replicated to Backblaze B2 by [Litestream](https://litestream.io) so data survives restarts. The [render.yaml](render.yaml) blueprint sets everything up; [docs/DEPLOY.md](docs/DEPLOY.md) walks through it step by step.
 
-The backend only contacts allowlisted GoDaddy HTTPS hosts. It rejects redirects and oversized responses, returns a sanitized trust summary, and never invokes endpoints supplied by discovered agents.
-
-## Configure Databricks
-
-The Hokie Career Navigator uses a server-side, read-only Databricks SQL Statement Execution adapter. Run [databricks/setup.sql](databricks/setup.sql) in a SQL warehouse to create and seed the curated `campus_resources` table, then configure:
-
-```dotenv
-DATABRICKS_HOST=https://your-workspace.azuredatabricks.net
-DATABRICKS_TOKEN=your-server-side-token
-DATABRICKS_WAREHOUSE_ID=your-sql-warehouse-id
-DATABRICKS_CATALOG=main
-DATABRICKS_SCHEMA=default
-DATABRICKS_RESOURCE_TABLE=campus_resources
-```
-
-The token remains server-side. Queries use fixed SQL with named parameters, return bounded inline results, and accept only validated Databricks workspace hosts and table identifiers.
+Run exactly one instance — SQLite with Litestream does not support horizontal scaling.
 
 ## Use the MCP server
-
-Run the local stdio server with:
 
 ```powershell
 npm run mcp
 ```
 
-Configure an MCP client to execute `node` with the absolute path to `collector/src/mcp.ts`. The server exposes:
+Point an MCP client at `node` with the absolute path to `collector/src/mcp.ts`. Tools:
 
-- `find_project_sessions`
-- `analyze_project`
-- `explain_report`
-- `recommend_drills`
-- `preview_publish`
-- `publish_report`
+| Tool | Purpose |
+|---|---|
+| `find_project_sessions` | Discover Claude Code / Codex session files for a chosen project (paths only, nothing analyzed) |
+| `analyze_project` | Reduce the selected sessions to numeric workflow signals, locally |
+| `explain_report` | Explain the signals in plain language |
+| `recommend_drills` | Map the weakest dimension to focused drills |
+| `preview_publish` | Show exactly what would be uploaded, with a digest |
+| `publish_report` | Upload the previewed aggregate — requires the digest and explicit confirmation |
 
-Session discovery searches only the standard local Claude Code and Codex history locations, matches the selected project, and returns file paths without analyzing or uploading them. Analysis remains limited to the project and session files supplied to the tool. Publishing requires a preview digest and explicit confirmation.
-
-After signing in, open `/connect` to generate a one-time connection token and copy the prepared Codex or Claude Code configuration. The token is stored only in the local MCP process environment. The server receives a validated numeric aggregate; prompts, source code, commands, paths, and filenames stay local.
+After signing in, open `/connect` to generate a one-time connection token and copy ready-made Codex or Claude Code configuration. The server only ever receives a validated numeric aggregate.
 
 ## Privacy and security
 
-- Accounts and public profiles are private by default.
+- Accounts and profiles are private by default; publishing is an explicit choice.
 - Passwords and recovery codes are stored as one-way hashes.
-- Raw prompts and source code stay out of workflow upload bundles.
-- Interview code runs in QuickJS without Node.js, filesystem, process, environment, or network access.
-- Hidden tests and reference solutions remain server-side.
-- Provider and ANS credentials never enter browser bundles.
-- State-changing browser requests use same-origin checks, secure cookies, bounded payloads, and rate limits.
+- Workflow uploads contain derived numbers only — never prompts, code, commands, or paths.
+- Interview code runs in a QuickJS sandbox with no Node.js, filesystem, process, environment, or network access.
+- Hidden tests and reference solutions stay on the server.
+- AI provider keys never enter browser bundles.
+- State-changing requests use same-origin checks, HttpOnly session cookies, bounded payloads, and rate limits; responses carry a strict Content-Security-Policy.
 
-## Development checks
+## Project layout
+
+| Path | Contents |
+|---|---|
+| `collector/` | Session parsers (Claude Code, Codex), feature extraction, local report CLI, MCP server |
+| `backend/src/` | HTTP server, accounts, scoring engine, challenge catalog, grading, QuickJS runner, AI provider adapter |
+| `web/src/` | Single-page app (bundled by esbuild into `backend/public/assets`) |
+| `harness/` | Persona simulator that generates synthetic sessions with known skill tiers to validate scoring |
+| `docs/` | Deployment guide |
+
+## Development
 
 ```powershell
 npm run build
 npm test
 ```
 
-The suite covers collectors, scoring, accounts, challenge redaction, the QuickJS sandbox, API flows, MCP publishing safeguards, Gemini-compatible requests, ANS response sanitization, and synthetic ranking separation.
+The test suite covers session parsing, feature extraction, scoring, accounts, challenge redaction, the QuickJS sandbox, API flows, MCP publishing safeguards, AI-provider requests, and synthetic skill-tier separation.
 
-See [PRD.md](PRD.md) for product requirements, delivery status, sponsor-track implementation plans, acceptance criteria, and the release test checklist.
+See [PRD.md](PRD.md) for product requirements, acceptance criteria, the release checklist, and the roadmap.
