@@ -24,3 +24,9 @@ test('runner interrupts non-terminating code', async () => {
   assert.equal(result.passed,false);
   assert.match(result.error??'',/resource limit|threw/i);
 });
+
+test('runner rejects solutions that mutate input even when the returned value is correct', async () => {
+  const [result]=await runCode('function solve(input){ input.changed=true; return input.value }',[{id:'mutation',input:{value:3},expected:3}]);
+  assert.equal(result.passed,false);
+  assert.match(result.error??'',/mutat/i);
+});
