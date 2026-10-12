@@ -22,6 +22,7 @@ The deployment script defaults match the Azure for Students subscription used by
 | Blob container | `vibescore-data` |
 | Foundry account | `foundry-demo-ms` in `rg-im-demo` |
 | Foundry model deployment | `gpt-4.1-mini` |
+| Public application | `https://vibescore.jollyrock-e347bbe2.eastus2.azurecontainerapps.io` |
 
 Container Apps Consumption includes a monthly free grant, but the registry, storage, logs, and Foundry inference can consume Azure student credit. Azure AI Foundry provides models and agents; it does not host this website.
 
@@ -71,7 +72,9 @@ Check the public status without exposing secrets:
 curl -fsS https://YOUR-APP.eastus2.azurecontainerapps.io/api/status
 ```
 
-Expected signals include `ok: true`, `ai: true`, provider `foundry`, and model `gpt-4.1-mini`.
+Expected signals include `ok: true`, `ai.enabled: true`, provider `foundry`, and model `gpt-4.1-mini`.
+
+The production deployment was verified on October 12, 2026. The verification created a temporary account and interview attempt, restarted the active revision, confirmed that Litestream restored the session from Blob storage, and received a coaching response through the backend from Foundry `gpt-4.1-mini`. The temporary account was deleted after the check.
 
 Inspect startup and Litestream output:
 

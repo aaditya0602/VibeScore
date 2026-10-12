@@ -50,7 +50,7 @@ Any OpenAI-compatible chat-completions endpoint also works. The Azure deployment
 
 ## Deploy
 
-The primary deployment runs the Docker application on Azure Container Apps Consumption and uses Microsoft Foundry for the AI coach. SQLite stays on the container's local disk while [Litestream](https://litestream.io) continuously replicates it to private Azure Blob Storage using managed identity. Run [infra/deploy-azure.sh](infra/deploy-azure.sh) for an idempotent build and deployment; [docs/DEPLOY.md](docs/DEPLOY.md) documents the resources and verification steps. The existing [render.yaml](render.yaml) remains available as an alternative host.
+The production site is live at [vibescore.jollyrock-e347bbe2.eastus2.azurecontainerapps.io](https://vibescore.jollyrock-e347bbe2.eastus2.azurecontainerapps.io). It runs the Docker application on Azure Container Apps Consumption and uses Microsoft Foundry for the AI coach. SQLite stays on the container's local disk while [Litestream](https://litestream.io) continuously replicates it to private Azure Blob Storage using managed identity. Run [infra/deploy-azure.sh](infra/deploy-azure.sh) for an idempotent build and deployment; [docs/DEPLOY.md](docs/DEPLOY.md) documents the resources and verification steps. The existing [render.yaml](render.yaml) remains available as an alternative host.
 
 Run exactly one instance — SQLite with Litestream does not support horizontal scaling.
 
