@@ -50,12 +50,26 @@ if ! az acr show --resource-group "$RESOURCE_GROUP" --name "$ACR_NAME" --output 
   az acr create --resource-group "$RESOURCE_GROUP" --name "$ACR_NAME" --location "$LOCATION" \
     --sku Basic --admin-enabled false --output none
 fi
-az acr build --registry "$ACR_NAME" --image "vibescore:${IMAGE_TAG}" . --output none
 
 if ! az containerapp env show --resource-group "$RESOURCE_GROUP" --name "$ENVIRONMENT_NAME" --output none 2>/dev/null; then
   az containerapp env create --resource-group "$RESOURCE_GROUP" --name "$ENVIRONMENT_NAME" \
     --location "$LOCATION" --enable-workload-profiles false --output none
 fi
+for attempt in $(seq 1 80); do
+  ENVIRONMENT_STATE="$(az containerapp env show --resource-group "$RESOURCE_GROUP" \
+    --name "$ENVIRONMENT_NAME" --query properties.provisioningState --output tsv)"
+  case "$ENVIRONMENT_STATE" in
+    Succeeded) break ;;
+    Failed|Canceled) echo "Container Apps environment entered ${ENVIRONMENT_STATE}." >&2; exit 1 ;;
+  esac
+  if [ "$attempt" = 80 ]; then
+    echo "Timed out waiting for the Container Apps environment." >&2
+    exit 1
+  fi
+  sleep 15
+done
+
+az acr build --registry "$ACR_NAME" --image "vibescore:${IMAGE_TAG}" . --output none
 
 FOUNDRY_ENDPOINT="$(az cognitiveservices account show --resource-group "$FOUNDRY_RESOURCE_GROUP" \
   --name "$FOUNDRY_ACCOUNT" --query 'properties.endpoints."OpenAI Language Model Instance API"' --output tsv)"
