@@ -20,15 +20,6 @@ ACR_NAME="${ACR_NAME:-vibescore${SUFFIX}acr}"
 STORAGE_ACCOUNT="${STORAGE_ACCOUNT:-vibescore${SUFFIX}data}"
 IMAGE_TAG="${IMAGE_TAG:-$(git rev-parse --short HEAD)}"
 IMAGE="${ACR_NAME}.azurecr.io/vibescore:${IMAGE_TAG}"
-ACR_ADMIN_TEMPORARY=0
-
-disable_temporary_acr_admin() {
-  if [ "$ACR_ADMIN_TEMPORARY" = 1 ]; then
-    az acr update --resource-group "$RESOURCE_GROUP" --name "$ACR_NAME" \
-      --admin-enabled false --output none || true
-  fi
-}
-trap disable_temporary_acr_admin EXIT
 
 for provider in Microsoft.App Microsoft.ContainerRegistry Microsoft.OperationalInsights Microsoft.Storage; do
   az provider register --namespace "$provider" --wait --output none
@@ -78,27 +69,26 @@ FOUNDRY_KEY="$(az cognitiveservices account keys list --resource-group "$FOUNDRY
 AI_ENDPOINT="${FOUNDRY_ENDPOINT%/}/openai/v1/chat/completions"
 
 if ! az containerapp show --resource-group "$RESOURCE_GROUP" --name "$APP_NAME" --output none 2>/dev/null; then
-  # Bootstrap with temporary registry credentials; after the identity exists we
-  # switch the app to managed-identity image pulls and disable the admin user.
-  az acr update --resource-group "$RESOURCE_GROUP" --name "$ACR_NAME" --admin-enabled true --output none
-  ACR_ADMIN_TEMPORARY=1
-  ACR_USER="$(az acr credential show --resource-group "$RESOURCE_GROUP" --name "$ACR_NAME" --query username --output tsv)"
-  ACR_PASSWORD="$(az acr credential show --resource-group "$RESOURCE_GROUP" --name "$ACR_NAME" --query 'passwords[0].value' --output tsv)"
+  # Bootstrap the system identity with Microsoft's public hello-world image,
+  # then grant it AcrPull before switching to the private VibeScore image.
   CLINIC_SECRET="$(openssl rand -hex 32)"
   az containerapp create --resource-group "$RESOURCE_GROUP" --name "$APP_NAME" \
-    --environment "$ENVIRONMENT_NAME" --image "$IMAGE" --registry-server "${ACR_NAME}.azurecr.io" \
-    --registry-username "$ACR_USER" --registry-password "$ACR_PASSWORD" --system-assigned \
-    --ingress external --target-port 8787 --transport auto --revisions-mode single \
+    --environment "$ENVIRONMENT_NAME" --image mcr.microsoft.com/azuredocs/containerapps-helloworld:latest \
+    --system-assigned --ingress external --target-port 80 --transport auto --revisions-mode single \
     --cpu 0.5 --memory 1.0Gi --min-replicas 0 --max-replicas 1 \
     --secrets "foundry-api-key=${FOUNDRY_KEY}" "clinic-pseudonym-secret=${CLINIC_SECRET}" \
-    --env-vars NODE_ENV=production PORT=8787 VIBESCORE_DATA_DIR=/data TRUST_PROXY=1 \
-      AI_PROVIDER=foundry AI_MODEL="$AI_MODEL" AI_ENDPOINT="$AI_ENDPOINT" AI_API_KEY=secretref:foundry-api-key \
-      CLINIC_PSEUDONYM_SECRET=secretref:clinic-pseudonym-secret \
     --output none
-  unset ACR_USER ACR_PASSWORD CLINIC_SECRET
+  unset CLINIC_SECRET
 else
   az containerapp secret set --resource-group "$RESOURCE_GROUP" --name "$APP_NAME" \
     --secrets "foundry-api-key=${FOUNDRY_KEY}" --output none
+  if [ "$(az containerapp secret list --resource-group "$RESOURCE_GROUP" --name "$APP_NAME" \
+    --query "[?name=='clinic-pseudonym-secret'] | length(@)" --output tsv)" = 0 ]; then
+    CLINIC_SECRET="$(openssl rand -hex 32)"
+    az containerapp secret set --resource-group "$RESOURCE_GROUP" --name "$APP_NAME" \
+      --secrets "clinic-pseudonym-secret=${CLINIC_SECRET}" --output none
+    unset CLINIC_SECRET
+  fi
 fi
 unset FOUNDRY_KEY
 
@@ -120,7 +110,8 @@ assign_role "AcrPull" "$ACR_ID"
 az containerapp registry set --resource-group "$RESOURCE_GROUP" --name "$APP_NAME" \
   --server "${ACR_NAME}.azurecr.io" --identity system --output none
 az acr update --resource-group "$RESOURCE_GROUP" --name "$ACR_NAME" --admin-enabled false --output none
-ACR_ADMIN_TEMPORARY=0
+az containerapp ingress update --resource-group "$RESOURCE_GROUP" --name "$APP_NAME" \
+  --target-port 8787 --output none
 
 FQDN="$(az containerapp show --resource-group "$RESOURCE_GROUP" --name "$APP_NAME" \
   --query properties.configuration.ingress.fqdn --output tsv)"
