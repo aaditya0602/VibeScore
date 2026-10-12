@@ -1,0 +1,14 @@
+# Azure Blob replica for Azure Container Apps. Litestream uses Azure's default
+# credential chain; no storage key is needed when the app has managed identity.
+snapshot:
+  interval: 24h
+  retention: 168h
+
+dbs:
+  - path: ${VIBESCORE_DATA_DIR}/vibescore.sqlite
+    replica:
+      type: abs
+      account-name: ${LITESTREAM_AZURE_ACCOUNT_NAME}
+      bucket: ${LITESTREAM_AZURE_CONTAINER}
+      path: vibescore
+      sync-interval: 1s

@@ -50,6 +50,16 @@ test('providers: azure keeps its api-key header',async()=>{
   assert.equal(calls[0].init.headers['api-key'],'k3');assert.equal(calls[0].init.headers.authorization,undefined);
 });
 
+test('providers: Foundry v1 uses the deployment name as its model',async()=>{
+  Object.assign(process.env,{AI_PROVIDER:'foundry',AI_API_KEY:'foundry-key',AI_MODEL:'gpt-4.1-mini',AI_ENDPOINT:'https://foundry-demo-ms.openai.azure.com/openai/v1/chat/completions'});
+  const calls=captureFetch();await askAssistant([{role:'user',content:'hi'}]);
+  assert.equal(aiStatus().enabled,true);
+  assert.equal(calls[0].url,process.env.AI_ENDPOINT);
+  assert.equal(calls[0].init.headers['api-key'],'foundry-key');
+  assert.equal(calls[0].init.headers.authorization,undefined);
+  assert.equal(calls[0].body.model,'gpt-4.1-mini');
+});
+
 test('providers: failures remain truthful and bounded',async()=>{
   Object.assign(process.env,{AI_PROVIDER:'gemini',AI_API_KEY:'private-test-key',AI_MODEL:'gemini-3.8-flash'});
   globalThis.fetch=(async()=>new Response('{}',{status:429,headers:{'content-type':'application/json'}})) as typeof fetch;

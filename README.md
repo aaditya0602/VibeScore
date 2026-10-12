@@ -46,11 +46,11 @@ AI_API_KEY=your-server-side-key
 AI_MODEL=gemini-3.8-flash
 ```
 
-Any OpenAI-compatible chat-completions endpoint also works; see [.env.example](.env.example). Keys stay on the server and never reach the browser. Daily request limits cap spend per deployment and per user. Note that on Gemini's free tier Google may use request content (coach messages, drill answers) to improve its products; workflow telemetry is never sent to the provider.
+Any OpenAI-compatible chat-completions endpoint also works. The Azure deployment uses the existing Microsoft Foundry `foundry-demo-ms` resource and its `gpt-4.1-mini` deployment. See [.env.example](.env.example). Keys stay on the server and never reach the browser. Daily request limits cap spend per deployment and per user. Note that on Gemini's free tier Google may use request content (coach messages, drill answers) to improve its products; workflow telemetry is never sent to the provider.
 
 ## Deploy
 
-VibeScore runs free on a Render web service (Docker), with the SQLite database continuously replicated to Backblaze B2 by [Litestream](https://litestream.io) so data survives restarts. The [render.yaml](render.yaml) blueprint sets everything up; [docs/DEPLOY.md](docs/DEPLOY.md) walks through it step by step.
+The primary deployment runs the Docker application on Azure Container Apps Consumption and uses Microsoft Foundry for the AI coach. SQLite stays on the container's local disk while [Litestream](https://litestream.io) continuously replicates it to private Azure Blob Storage using managed identity. Run [infra/deploy-azure.sh](infra/deploy-azure.sh) for an idempotent build and deployment; [docs/DEPLOY.md](docs/DEPLOY.md) documents the resources and verification steps. The existing [render.yaml](render.yaml) remains available as an alternative host.
 
 Run exactly one instance — SQLite with Litestream does not support horizontal scaling.
 

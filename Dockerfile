@@ -42,6 +42,7 @@ COPY --from=build /app/docs ./docs
 COPY --from=build /app/web ./web
 COPY --from=build /app/scripts ./scripts
 COPY litestream.yml ./litestream.yml
+COPY litestream-azure.yml ./litestream-azure.yml
 COPY scripts/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
 RUN mkdir -p /data \

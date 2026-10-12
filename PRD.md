@@ -186,7 +186,7 @@ The coach gives hints and reasoning help during drills and interviews without pr
 
 ## 15. Deployment
 
-VibeScore is deployed as a Docker container (`Dockerfile`, Node.js ≥ 22.20) to a single Render free web service. Data lives in SQLite and is continuously replicated to Backblaze B2 via Litestream for durability across restarts. The deployment runs a single instance and sleeps when idle, waking on the next request. The server derives its canonical origin from Render's injected `RENDER_EXTERNAL_URL` unless `PUBLIC_ORIGIN` is set for a custom domain. GitHub Actions CI runs the build, the full test suite, and a production-image smoke test on every push. Full setup and operational steps are documented in `docs/DEPLOY.md`.
+VibeScore is deployed as a Docker container (`Dockerfile`, Node.js ≥ 22.20) to Azure Container Apps Consumption. Microsoft Foundry supplies the AI coach through an existing model deployment. Data lives in local SQLite and is continuously replicated to private Azure Blob Storage via Litestream and the container app's managed identity. The app is limited to one replica, can scale to zero when idle, and restores SQLite before starting after a cold start. `PUBLIC_ORIGIN` is set to the Container Apps HTTPS hostname or a custom domain. GitHub Actions CI runs the build, full test suite, dependency audit, and production-image smoke test on every pull request. Full setup and operational steps are documented in `docs/DEPLOY.md`.
 
 ## 16. Acceptance criteria
 
@@ -280,9 +280,9 @@ VibeScore is deployed as a Docker container (`Dockerfile`, Node.js ≥ 22.20) to
 
 - [ ] Canonical domain resolves from an external network.
 - [ ] HTTPS certificate is valid and HTTP redirects safely.
-- [ ] The effective origin (`PUBLIC_ORIGIN`, else Render's `RENDER_EXTERNAL_URL`) matches the canonical HTTPS URL, session cookies carry `Secure`, and cross-origin state-changing requests are rejected.
-- [ ] `/api/status` returns HTTP 200 after a cold start (including a Render sleep/wake cycle).
-- [ ] SQLite data survives an application restart and is recoverable from the Litestream/B2 replica.
+- [ ] `PUBLIC_ORIGIN` matches the canonical Container Apps or custom HTTPS URL, session cookies carry `Secure`, and cross-origin state-changing requests are rejected.
+- [ ] `/api/status` returns HTTP 200 after a Container Apps scale-to-zero cold start.
+- [ ] SQLite data survives an application restart and is recoverable from the Litestream/Azure Blob replica.
 - [ ] Security headers, secure cookies, TLS policy, request limits, and rate limits remain active.
 - [ ] A fresh private-browser session can complete the core assess-practise-prove flow.
 

@@ -12,5 +12,6 @@ pilot-data
 *.sqlite-shm
 *.sqlite-wal
 *.bundle.json
+*.pptx
 backend/public/assets
 npm-debug.log*

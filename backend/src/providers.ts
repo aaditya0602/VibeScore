@@ -7,17 +7,18 @@ async function boundedJson(response: Response): Promise<any> {
 }
 export function aiStatus() {
   const provider = process.env.AI_PROVIDER ?? 'gemini';
-  return { enabled: Boolean(process.env.AI_API_KEY && process.env.AI_MODEL && (!['azure','openai'].includes(provider) || process.env.AI_ENDPOINT)), provider,
+  return { enabled: Boolean(process.env.AI_API_KEY && process.env.AI_MODEL && (!['azure','foundry','openai'].includes(provider) || process.env.AI_ENDPOINT)), provider,
     model: process.env.AI_MODEL || null, maxOutputTokens: Math.min(2400, Math.max(200, Number(process.env.AI_MAX_OUTPUT_TOKENS) || 1200)) };
 }
 export async function askAssistant(messages: ChatMessage[]): Promise<{ text: string; model: string; provider: string; tokens: number | null }> {
   const status = aiStatus();
   if (!status.enabled) throw new Error('The AI assistant is not configured yet. You can still practise and run your code.');
   const endpoints: Record<string,string> = { zai:'https://api.z.ai/api/paas/v4/chat/completions', gemini:'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions' };
-  const endpoint = ['azure','openai'].includes(status.provider) ? process.env.AI_ENDPOINT! : endpoints[status.provider];
+  const endpoint = ['azure','foundry','openai'].includes(status.provider) ? process.env.AI_ENDPOINT! : endpoints[status.provider];
   if (!endpoint || new URL(endpoint).protocol !== 'https:') throw new Error('AI provider configuration is invalid.');
   const headers: Record<string,string> = { 'content-type':'application/json' };
-  headers[status.provider === 'azure' ? 'api-key' : 'authorization'] = status.provider === 'azure' ? process.env.AI_API_KEY! : `Bearer ${process.env.AI_API_KEY}`;
+  const usesAzureKey = ['azure','foundry'].includes(status.provider);
+  headers[usesAzureKey ? 'api-key' : 'authorization'] = usesAzureKey ? process.env.AI_API_KEY! : `Bearer ${process.env.AI_API_KEY}`;
   const payload:Record<string,unknown> = { model:status.model,
     messages:messages.map(m => ({role:m.role,content:m.content.slice(0,14000)})), max_tokens:status.maxOutputTokens };
   if(status.provider==='gemini')payload.reasoning_effort='low';
