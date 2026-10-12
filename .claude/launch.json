@@ -6,6 +6,13 @@
       "runtimeExecutable": "node",
       "runtimeArgs": ["backend/src/server.ts"],
       "port": 8787
+    },
+    {
+      "name": "vibescore-review",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["backend/src/server.ts"],
+      "env": { "PORT": "8899", "VIBESCORE_DATA_DIR": ".local/review-data" },
+      "port": 8899
     }
   ]
 }

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { assessDrill, gradeInterview } from "../src/assessment.ts";
+import { assessDrill, assessDrillWithAI, gradeInterview } from "../src/assessment.ts";
 import { getPrivateDrill, getPrivateInterview, getPublicChallenge, listChallenges } from "../src/challenges.ts";
 
 test("catalog has thirteen drills and six JavaScript interview tasks", () => {
@@ -39,17 +39,32 @@ test("every interview reference solution passes its fixed test environment", asy
   }
 });
 
-test("drill assessment is explicit about phrase matching and never rating eligible", () => {
+test("drill fallback caps keyword lists and repeated answers", () => {
   const drill = getPrivateDrill("frame-expense-tracker")!;
   const result = assessDrill(drill.id, drill.strongExample)!;
   assert.equal(result.ratingEligible, false);
-  assert.equal(result.method, "transparent-phrase-check");
-  assert.match(result.notice, /cannot determine whether your response is correct/i);
+  assert.equal(result.method, "structured-rubric-fallback");
   assert.equal(result.maxScore, 100);
   assert.equal(assessDrill("missing", "text"), undefined);
   const empty = assessDrill(drill.id, "")!;
   assert.equal(empty.score, 0);
-  assert.ok(empty.criteria.every((criterion) => criterion.feedback.includes("Phrase checks found")));
+  const salad = assessDrill(drill.id, "student category localStorage no backend negative 12 plan first")!;
+  assert.ok(salad.score <= 20);
+  assert.match(salad.overallFeedback, /too brief/i);
+  const repeated = assessDrill(drill.id, drill.strongExample, {reusedAnswer:true})!;
+  assert.ok(repeated.score <= 20);
+  assert.match(repeated.qualityFlags.join(' '), /repeats a previously submitted response/i);
+});
+
+test("semantic drill assessment returns grounded, criterion-specific coaching", async () => {
+  const drill = getPrivateDrill("frame-expense-tracker")!;
+  const evaluator = async () => ({provider:'test-model',text:JSON.stringify({criteria:drill.rubric.map((criterion,index)=>({id:criterion.id,status:index===0?'partial':'missing',score:index===0?12:0,evidence:index===0?'Names a student trip but omits the workflow.':'No evidence.',feedback:index===0?'Connect the student action to the category total.':`Add ${criterion.label.toLowerCase()} with a concrete expected outcome.`})),strengths:['Identifies the student scenario.'],improvements:['Add an input/output example.'],overallFeedback:'The response identifies the setting but does not yet give an executable, verifiable instruction.'})});
+  const result = await assessDrillWithAI(drill.id,'A student needs a trip tracker. Ask a few questions before making anything, then build it.',{evaluator}) as any;
+  assert.equal(result.method,'semantic-rubric-review');
+  assert.equal(result.provider,'test-model');
+  assert.match(result.criteria[0].feedback,/category total/i);
+  assert.match(result.overallFeedback,/executable/i);
+  assert.ok(result.improvements.length>0);
 });
 
 test("interview grade accepts complete unique trusted runner results and hides hidden cases", () => {

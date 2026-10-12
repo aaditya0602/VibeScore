@@ -42,3 +42,29 @@ jobs:
             sleep 1
           done
           npm run smoke -- http://127.0.0.1:8787
+
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build production image
+        run: docker build -t vibescore-ci .
+      - name: Smoke production image
+        run: |
+          docker run -d --name vibescore-ci -p 8787:8787 \
+            -e PUBLIC_ORIGIN=http://127.0.0.1:8787 \
+            -e CLINIC_PSEUDONYM_SECRET=ci-only-pseudonym-secret-at-least-32-characters \
+            vibescore-ci
+          trap 'docker rm -f vibescore-ci >/dev/null 2>&1 || true' EXIT
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:8787/api/status >/dev/null; then
+              break
+            fi
+            if ! docker inspect --format '{{.State.Running}}' vibescore-ci 2>/dev/null | grep -q true; then
+              docker logs vibescore-ci
+              exit 1
+            fi
+            sleep 1
+          done
+          docker exec vibescore-ci node scripts/smoke.mjs http://127.0.0.1:8787

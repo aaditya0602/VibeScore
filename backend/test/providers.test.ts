@@ -1,30 +1,59 @@
-import test, { mock } from 'node:test';
+import { afterEach, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { aiStatus, askAssistant } from '../src/providers.ts';
 
-const names=['AI_PROVIDER','AI_API_KEY','AI_MODEL','AI_ENDPOINT','AI_MAX_OUTPUT_TOKENS'] as const;
-const original=Object.fromEntries(names.map(name=>[name,process.env[name]]));
-function restore(){for(const name of names)original[name]===undefined?delete process.env[name]:process.env[name]=original[name];mock.restoreAll();}
+const KEYS=['AI_PROVIDER','AI_API_KEY','AI_MODEL','AI_ENDPOINT','AI_MAX_OUTPUT_TOKENS'] as const;
+const saved=Object.fromEntries(KEYS.map(key=>[key,process.env[key]]));
+const realFetch=globalThis.fetch;
 
-test('Gemini adapter uses the documented compatibility request without exposing its key', async t => {
-  t.after(restore);process.env.AI_PROVIDER='gemini';process.env.AI_API_KEY='private-test-key';process.env.AI_MODEL='gemini-3.8-flash';process.env.AI_MAX_OUTPUT_TOKENS='700';
-  let request:any;
-  mock.method(globalThis,'fetch',async (url:any,init:any)=>{request={url:String(url),init};return new Response(JSON.stringify({choices:[{message:{content:'Start by clarifying the empty-input behavior.'}}],usage:{total_tokens:42}}),{headers:{'content-type':'application/json'}});});
-  const result=await askAssistant([{role:'user',content:'Help me reason.'}]);
-  assert.equal(result.provider,'gemini');assert.equal(result.model,'gemini-3.8-flash');assert.equal(result.tokens,42);
-  assert.equal(request.url,'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions');
-  assert.equal(request.init.redirect,'error');assert.equal(request.init.headers.authorization,'Bearer private-test-key');
-  const payload=JSON.parse(request.init.body);assert.equal(payload.reasoning_effort,'low');assert.equal(payload.max_tokens,700);
-  assert.doesNotMatch(JSON.stringify(result),/private-test-key/);
+afterEach(()=>{
+  for(const key of KEYS)saved[key]===undefined?delete process.env[key]:process.env[key]=saved[key];
+  globalThis.fetch=realFetch;
 });
 
-test('AI status and provider failures remain truthful and bounded', async t => {
-  t.after(restore);delete process.env.AI_API_KEY;process.env.AI_PROVIDER='gemini';process.env.AI_MODEL='gemini-3.8-flash';
+function captureFetch(){
+  const calls:Array<{url:string;init:any;body:any}>=[];
+  globalThis.fetch=(async(url:string|URL|Request,init:any)=>{
+    calls.push({url:String(url),init,body:JSON.parse(init.body)});
+    return new Response(JSON.stringify({choices:[{message:{content:'hint'}}],usage:{total_tokens:7}}),{status:200,headers:{'content-type':'application/json'}});
+  }) as typeof fetch;
+  return calls;
+}
+
+test('providers: gemini is the default provider',()=>{
+  delete process.env.AI_PROVIDER;
+  assert.equal(aiStatus().provider,'gemini');
+});
+
+test('providers: gemini uses the documented compatibility request without exposing its key',async()=>{
+  Object.assign(process.env,{AI_PROVIDER:'gemini',AI_API_KEY:'private-test-key',AI_MODEL:'gemini-3.8-flash',AI_MAX_OUTPUT_TOKENS:'700'});
+  const calls=captureFetch(),out=await askAssistant([{role:'user',content:'hi'}]);
+  assert.equal(out.text,'hint');assert.equal(out.tokens,7);assert.doesNotMatch(JSON.stringify(out),/private-test-key/);
+  assert.equal(calls[0].url,'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions');
+  assert.equal(calls[0].init.redirect,'error');assert.equal(calls[0].init.headers.authorization,'Bearer private-test-key');
+  assert.equal(calls[0].body.reasoning_effort,'low');assert.equal(calls[0].body.max_tokens,700);
+});
+
+test('providers: openai requires an HTTPS endpoint and uses bearer auth',async()=>{
+  Object.assign(process.env,{AI_PROVIDER:'openai',AI_API_KEY:'k2',AI_MODEL:'m'});delete process.env.AI_ENDPOINT;
   assert.equal(aiStatus().enabled,false);
-  process.env.AI_API_KEY='private-test-key';
-  mock.method(globalThis,'fetch',async()=>new Response('{}',{status:429,headers:{'content-type':'application/json'}}));
-  await assert.rejects(askAssistant([{role:'user',content:'hello'}]),/usage limit/);
-  mock.restoreAll();
-  mock.method(globalThis,'fetch',async()=>new Response('x'.repeat(257_000),{headers:{'content-type':'application/json'}}));
-  await assert.rejects(askAssistant([{role:'user',content:'hello'}]),/oversized/);
+  process.env.AI_ENDPOINT='https://llm.example.com/v1/chat/completions';assert.equal(aiStatus().enabled,true);
+  const calls=captureFetch();await askAssistant([{role:'user',content:'hi'}]);
+  assert.equal(calls[0].url,process.env.AI_ENDPOINT);assert.equal(calls[0].init.headers.authorization,'Bearer k2');assert.equal(calls[0].init.headers['api-key'],undefined);
+  process.env.AI_ENDPOINT='http://llm.example.com/v1/chat/completions';
+  await assert.rejects(()=>askAssistant([{role:'user',content:'hi'}]),/invalid/);
+});
+
+test('providers: azure keeps its api-key header',async()=>{
+  Object.assign(process.env,{AI_PROVIDER:'azure',AI_API_KEY:'k3',AI_MODEL:'m',AI_ENDPOINT:'https://res.openai.azure.com/openai/deployments/d/chat/completions'});
+  const calls=captureFetch();await askAssistant([{role:'user',content:'hi'}]);
+  assert.equal(calls[0].init.headers['api-key'],'k3');assert.equal(calls[0].init.headers.authorization,undefined);
+});
+
+test('providers: failures remain truthful and bounded',async()=>{
+  Object.assign(process.env,{AI_PROVIDER:'gemini',AI_API_KEY:'private-test-key',AI_MODEL:'gemini-3.8-flash'});
+  globalThis.fetch=(async()=>new Response('{}',{status:429,headers:{'content-type':'application/json'}})) as typeof fetch;
+  await assert.rejects(()=>askAssistant([{role:'user',content:'hello'}]),/usage limit/);
+  globalThis.fetch=(async()=>new Response('x'.repeat(257_000),{headers:{'content-type':'application/json'}})) as typeof fetch;
+  await assert.rejects(()=>askAssistant([{role:'user',content:'hello'}]),/oversized/);
 });

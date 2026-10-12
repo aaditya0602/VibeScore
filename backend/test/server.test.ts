@@ -38,7 +38,7 @@ test('public beta API supports account, catalog, drill and interview flows witho
     call=await api('/api/workflow');assert.equal(call.response.status,200);assert.equal(call.data.connected,false);assert.equal(call.data.latest,null);
     const unauthenticated=await fetch(base+'/api/me/api-token',{method:'POST'});assert.equal(unauthenticated.status,401);
     call=await api('/api/me/api-token',{method:'POST'});assert.equal(call.response.status,201);assert.equal(call.response.headers.get('cache-control'),'no-store');
-    const firstToken=call.data.token;assert.equal(userByToken(firstToken,'api')?.handle,'api_builder');
+    const firstToken=call.data.token;assert.match(firstToken,/^[A-Za-z0-9_-]{40,}$/);assert.equal(userByToken(firstToken,'api')?.handle,'api_builder');
     call=await api('/api/me/api-token',{method:'POST'});const replacement=call.data.token;
     assert.notEqual(replacement,firstToken);assert.equal(userByToken(firstToken,'api'),undefined);assert.equal(userByToken(replacement,'api')?.handle,'api_builder');
     const collectorRequest=async(path:string,init:RequestInit={})=>{
@@ -73,6 +73,8 @@ test('public beta API supports account, catalog, drill and interview flows witho
     call=await api('/api/me');assert.equal(call.response.status,200);assert.equal(call.data.token,undefined,'secrets are not retrievable');
     call=await api('/api/challenges');assert.equal(call.data.challenges.length,19);assert.doesNotMatch(JSON.stringify(call.data),/referenceSolution|strongExample|hidden/);
     const drill=call.data.challenges.find((x:any)=>x.kind==='drill');
+    call=await api('/api/status');assert.equal(call.data.ok,true);
+    assert.deepEqual(Object.keys(call.data).sort(),['ai','algoVersion','ans','clinic','clinicExport','databricks','ok','version']);
     call=await api(`/api/challenges/${drill.id}/start`,{method:'POST',body:JSON.stringify({mode:'practice'})});const drillAttempt=call.data.attempt.id;
     const priorKey=process.env.AI_API_KEY;delete process.env.AI_API_KEY;
     try {
@@ -81,9 +83,9 @@ test('public beta API supports account, catalog, drill and interview flows witho
       call=await api(`/api/attempts/${drillAttempt}/chat`,{method:'POST',body:JSON.stringify({message:'Help me clarify requirements.'})});assert.equal(call.response.status,503);
       assert.equal(Number((getDatabase().prepare('SELECT count(*) AS n FROM ai_usage').get() as any).n),0);
       assert.equal(Number((getDatabase().prepare('SELECT count(*) AS n FROM assistant_messages').get() as any).n),0);
+      call=await api(`/api/attempts/${drillAttempt}/submit`,{method:'POST',body:JSON.stringify({answer:'First clarify the user, constraints, tests, and a small plan.'})});
+      assert.equal(call.response.status,200);assert.equal(call.data.result.ratingEligible,false);assert.equal(call.data.result.method,'structured-rubric-fallback');
     } finally {priorKey===undefined?delete process.env.AI_API_KEY:process.env.AI_API_KEY=priorKey;}
-    call=await api(`/api/attempts/${drillAttempt}/submit`,{method:'POST',body:JSON.stringify({answer:'First clarify the user, constraints, tests, and a small plan.'})});
-    assert.equal(call.response.status,200);assert.equal(call.data.result.ratingEligible,false);
     const interview=getPrivateInterview('interview-retry-planner')!;
     call=await api(`/api/challenges/${interview.id}/start`,{method:'POST',body:JSON.stringify({mode:'rated'})});const interviewAttempt=call.data.attempt.id;
     call=await api(`/api/attempts/${interviewAttempt}/submit`,{method:'POST',body:JSON.stringify({code:interview.referenceSolution,reflection:'I checked boundary windows and repeated calls.'})});

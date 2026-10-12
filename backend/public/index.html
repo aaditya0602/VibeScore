@@ -3,26 +3,31 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="description" content="Measure, practise, and prove how well you build with AI.">
-  <meta name="theme-color" content="#0b1020">
+  <meta name="description" content="VibeScore is the skill layer for building with AI: measure your real coding-agent workflow, practise focused drills, and prove it in timed AI-assisted coding rounds.">
+  <meta name="theme-color" content="#080c18">
+  <meta name="color-scheme" content="dark">
   <title>VibeScore — Build better with AI</title>
-  <link rel="stylesheet" href="/style.css?v=3">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css?v=4">
 </head>
 <body>
   <a class="skip-link" href="#app">Skip to content</a>
   <header class="site-header">
-    <a class="brand" href="/" data-link aria-label="VibeScore home"><span>V</span>VibeScore <small>beta</small></a>
-    <nav class="nav" aria-label="Main navigation">
-      <a href="/practice" data-link>Practice</a>
-      <a href="/connect" data-link>Connect</a>
-      <a href="/leaderboard" data-link>Leaderboard</a>
-      <a href="/hokie" data-link>For Hokies</a>
-    </nav>
-    <div id="account-nav" class="account-nav"><a class="button ghost small" href="/login" data-link>Sign in</a><a class="button small" href="/join" data-link>Join beta</a></div>
+    <a class="brand" href="/" data-link aria-label="VibeScore home"><span aria-hidden="true">V</span>VibeScore <small>beta</small></a>
+    <button class="nav-toggle" type="button" data-action="menu" aria-expanded="false" aria-controls="nav-panel" aria-label="Open menu"><span aria-hidden="true"></span></button>
+    <div class="nav-panel" id="nav-panel">
+      <nav class="nav" aria-label="Main navigation">
+        <a href="/practice" data-link>Practice</a>
+        <a href="/connect" data-link>Connect</a>
+        <a href="/leaderboard" data-link>Leaderboard</a>
+        <a href="/check" data-link>Readiness check</a>
+      </nav>
+      <div id="account-nav" class="account-nav"><a class="button ghost small" href="/login" data-link>Sign in</a><a class="button small" href="/join" data-link>Join beta</a></div>
+    </div>
   </header>
-  <main id="app" tabindex="-1"><div class="route-loading"><span></span><p>Loading VibeScore…</p></div></main>
-  <footer class="site-footer"><div><a class="brand muted" href="/" data-link><span>V</span>VibeScore</a><p>Measure the process. Practise the craft. Prove the skill.</p></div><div class="footer-links"><a href="/privacy" data-link>Privacy</a><a href="/practice" data-link>Practice</a><a href="/leaderboard" data-link>Leaderboard</a><a href="https://github.com/aaditya0602/VibeScore" target="_blank" rel="noreferrer">GitHub ↗</a></div></footer>
-  <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script type="module" src="/assets/app.js?v=3"></script>
+  <main id="app" tabindex="-1"><div class="route-loading" role="status"><span aria-hidden="true"></span><p>Loading VibeScore…</p></div></main>
+  <footer class="site-footer"><div><a class="brand" href="/" data-link aria-label="VibeScore home"><span aria-hidden="true">V</span>VibeScore</a><p>The skill layer for building with AI. Measure the process, practise the craft, prove the skill.</p></div><nav class="footer-links" aria-label="Footer"><a href="/privacy" data-link>Privacy</a><a href="/check" data-link>Readiness check</a><a href="/practice" data-link>Practice</a><a href="/leaderboard" data-link>Leaderboard</a><a href="https://github.com/aaditya0602/VibeScore" target="_blank" rel="noreferrer">GitHub <span aria-hidden="true">↗</span><span class="sr-only">(opens in a new tab)</span></a></nav></footer>
+  <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+  <script type="module" src="/assets/app.js?v=4"></script>
 </body>
 </html>

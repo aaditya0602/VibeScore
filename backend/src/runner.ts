@@ -43,13 +43,16 @@ if (!isMainThread && parentPort) {
       } else {
         loaded.value.dispose();
         const args = test.args ?? [test.input];
-        const evaluated = vm.evalCode(`solve(${args.map(x => JSON.stringify(x) ?? 'undefined').join(',')})`);
+        const serializedArgs = args.map(x => JSON.stringify(x) ?? 'undefined').join(',');
+        const evaluated = vm.evalCode(`(() => { const __args = [${serializedArgs}]; const __before = JSON.stringify(__args); const __value = solve(...__args); return { value: __value, mutated: JSON.stringify(__args) !== __before }; })()`);
         if (evaluated.error) { evaluated.error.dispose(); result.error = 'The solve function threw an error or exceeded a resource limit.'; }
         else {
-          const value = vm.dump(evaluated.value);
+          const envelope = vm.dump(evaluated.value) as { value: unknown; mutated: boolean };
           evaluated.value.dispose();
+          const value = envelope?.value;
           const serialized = JSON.stringify(value);
-          if (serialized === undefined || serialized.length > 64000) result.error = 'Return a JSON-compatible value under 64 KB.';
+          if (envelope?.mutated) result.error = 'The solution mutated its input. Return a new value without changing the provided data.';
+          else if (serialized === undefined || serialized.length > 64000) result.error = 'Return a JSON-compatible value under 64 KB.';
           else { result.passed = isDeepStrictEqual(value, test.expected); if (!test.hidden) result.actual = value; }
         }
       }
