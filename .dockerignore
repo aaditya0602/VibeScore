@@ -7,7 +7,6 @@ node_modules
 **/node_modules
 backend/data
 pilot-data
-docs
 .local
 *.sqlite
 *.sqlite-shm

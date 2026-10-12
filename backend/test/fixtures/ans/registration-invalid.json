@@ -1,0 +1,10 @@
+{
+  "agentId": "agent-1234",
+  "status": "PENDING_ACME",
+  "challenge": {
+    "dnsRecord": {
+      "name": "_acme-challenge.agent.example.com",
+      "type": "TXT"
+    }
+  }
+}

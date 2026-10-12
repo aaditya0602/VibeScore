@@ -12,6 +12,8 @@ export { looksLikeBundle, parseBundle, ValidationError };
 export interface User { handle: string; createdAt: string; isPublic: boolean; }
 export interface PopulationEntry { handle: string; synthetic: boolean; persona?: string; bundle: Bundle; }
 export interface CredentialUser extends User { token: string; recoveryCode?: string; }
+export type CredentialKind = "api" | "session";
+export interface AuthenticatedCredential { user: User; kind: CredentialKind; }
 let connection: DatabaseSync | undefined;
 let openedPath: string | undefined;
 
@@ -73,7 +75,7 @@ function passwordMatches(password: unknown, encoded: string | null | undefined):
   const actual = scryptSync(password, salt, 64);
   return timingSafeEqual(actual, Buffer.from(expected, "hex")) && !!encoded;
 }
-function credential(db: DatabaseSync, handle: string, kind: "api" | "session"): string {
+function credential(db: DatabaseSync, handle: string, kind: CredentialKind): string {
   const token = opaque();
   db.prepare("INSERT INTO credentials(hash,handle,kind,expires_at) VALUES(?,?,?,?)")
     .run(hash(token), handle, kind, kind === "session" ? Date.now() + 7 * 86400_000 : null);
@@ -94,11 +96,15 @@ export function registerUser(handle: string, password?: string): (CredentialUser
     return { handle, createdAt, isPublic: false, token: credential(db, handle, "api"), recoveryCode };
   });
 }
-export function userByToken(token: string): User | undefined {
+export function credentialByToken(token: string): AuthenticatedCredential | undefined {
   if (typeof token !== "string" || token.length < 32 || token.length > 256) return undefined;
-  const row = getDatabase().prepare(`SELECT u.* FROM users u JOIN credentials c ON c.handle=u.handle
+  const row: any = getDatabase().prepare(`SELECT u.*, c.kind AS credential_kind FROM users u JOIN credentials c ON c.handle=u.handle
     WHERE c.hash=? AND (c.expires_at IS NULL OR c.expires_at>?)`).get(hash(token), Date.now());
-  return row ? userView(row) : undefined;
+  return row ? { user: userView(row), kind: row.credential_kind as CredentialKind } : undefined;
+}
+export function userByToken(token: string, kind: CredentialKind): User | undefined {
+  const authenticated = credentialByToken(token);
+  return authenticated?.kind === kind ? authenticated.user : undefined;
 }
 export function loginUser(handle: string, password: string): CredentialUser | null {
   const row: any = getDatabase().prepare("SELECT * FROM users WHERE handle=?").get(handle);
@@ -133,6 +139,7 @@ export function rotateToken(handle: string): string {
   });
 }
 export function revokeToken(token: string): void { getDatabase().prepare("DELETE FROM credentials WHERE hash=?").run(hash(token)); }
+export function revokeApiTokens(handle: string): void { getDatabase().prepare("DELETE FROM credentials WHERE handle=? AND kind='api'").run(handle); }
 export function revokeSessions(handle: string): void { getDatabase().prepare("DELETE FROM credentials WHERE handle=? AND kind='session'").run(handle); }
 export function setVisibility(handle: string, isPublic: boolean): User | null {
   if (typeof isPublic !== "boolean") throw new ValidationError("isPublic must be boolean");

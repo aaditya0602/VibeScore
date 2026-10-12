@@ -6,6 +6,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import { pathToFileURL } from "node:url";
 import { analyzeProject, explainReport, findProjectSessions, recommendDrills, type ProjectAnalysis } from "./analyze.ts";
+import { submissionResponse } from "./cli.ts";
 import { parseBundle } from "../../backend/src/validation.ts";
 
 export const server = new McpServer({ name: "vibescore", version: "0.2.0" });
@@ -61,15 +62,14 @@ server.registerTool("preview_publish", {
 });
 
 server.registerTool("publish_report", {
-  description: "Publish a previously previewed numeric report. Requires the matching preview SHA-256, confirm=true, and VIBESCORE_SERVER, VIBESCORE_HANDLE, VIBESCORE_TOKEN environment variables.",
+  description: "Publish a previously previewed numeric report. Requires the matching preview SHA-256, confirm=true, and VIBESCORE_SERVER and VIBESCORE_TOKEN environment variables.",
   inputSchema: { report_id: reportId, expected_sha256: z.string().regex(/^[a-f0-9]{64}$/), confirm: z.literal(true) },
 }, async ({ report_id, expected_sha256 }) => {
   const preview = previews.get(report_id);
   if (!preview || preview.digest !== expected_sha256) throw new Error("No matching publish preview. Run preview_publish and use its exact sha256.");
   const serverUrl = process.env.VIBESCORE_SERVER;
-  const handle = process.env.VIBESCORE_HANDLE;
   const token = process.env.VIBESCORE_TOKEN;
-  if (!serverUrl || !handle || !token) throw new Error("Set VIBESCORE_SERVER, VIBESCORE_HANDLE, and VIBESCORE_TOKEN before publishing.");
+  if (!serverUrl || !token) throw new Error("Set VIBESCORE_SERVER and VIBESCORE_TOKEN before publishing.");
   const target = new URL(serverUrl);
   const loopback = ["localhost", "127.0.0.1", "::1", "[::1]"].includes(target.hostname.toLowerCase());
   if (target.protocol !== "https:" && !(target.protocol === "http:" && loopback)) {
@@ -78,10 +78,9 @@ server.registerTool("publish_report", {
   if (target.username || target.password || target.search || target.hash) throw new Error("VIBESCORE_SERVER must not contain credentials, query, or fragment.");
   target.pathname = `${target.pathname.replace(/\/$/, "")}/api/bundles`;
   const response = await fetch(target, { method: "POST", redirect: "error", headers: { "content-type": "application/json", "x-token": token }, body: JSON.stringify(preview.bundle) });
-  const body = await response.json().catch(() => ({})) as any;
-  if (!response.ok) throw new Error(`Publish failed (${response.status}): ${body.error ?? "server error"}`);
+  const body = await submissionResponse(response);
   previews.delete(report_id);
-  return asText({ published: true, handle, score: body.score ?? null });
+  return asText({ published: true, handle:body.score?.handle??null, score: body.score ?? null });
 });
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

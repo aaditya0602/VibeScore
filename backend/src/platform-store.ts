@@ -25,7 +25,7 @@ function row(r:any): Attempt | null {
 }
 export function createAttempt(handle:string, c:{id:string;kind:string;minutes:number;starterCode?:string}, mode:'practice'|'rated'):Attempt {
   const d=db();
-  const existing=row(d.prepare("SELECT * FROM attempts WHERE handle=? AND challenge_id=? AND status='active'").get(handle,c.id));
+  const existing=row(d.prepare("SELECT * FROM attempts WHERE handle=? AND challenge_id=? AND mode=? AND status='active' ORDER BY started_at DESC LIMIT 1").get(handle,c.id,mode));
   if (existing && (mode==='practice' || Date.now()<Date.parse(existing.deadline))) return existing;
   if (existing) d.prepare("UPDATE attempts SET status='expired' WHERE id=?").run(existing.id);
   const id=randomUUID(), now=new Date();
@@ -56,10 +56,11 @@ export function claimAiUsage(handle:string):boolean {
   return true;
 }
 export function challengeSummary(handle:string) {
-  const all=attemptsFor(handle), scored=all.filter(a=>a.result?.ratingEligible);
-  const average=scored.length?Math.round(scored.reduce((s,a)=>s+Number(a.result.score??a.result.totalScore??0),0)/scored.length):null;
+  const all=(db().prepare('SELECT * FROM attempts WHERE handle=? ORDER BY started_at DESC').all(handle) as any[]).map(x=>row(x)!);
+  const scored=all.filter(a=>a.result?.ratingEligible);
+  const average=scored.length?Math.round(scored.reduce((s,a)=>s+Number(a.result.totalScore??a.result.score??0),0)/scored.length):null;
   return {completed:all.filter(a=>a.status==='submitted').length,ratedTasks:scored.length,rating:average===null?null:800+14*average,
-    eligible:scored.length>=2,average,history:scored.map(a=>({at:a.submittedAt,score:a.result.score??a.result.totalScore,challengeId:a.challengeId})).reverse()};
+    eligible:scored.length>=2,average,history:scored.map(a=>({at:a.submittedAt,score:a.result.totalScore??a.result.score,challengeId:a.challengeId})).reverse()};
 }
 export function publicChallengeLeaderboard(limit=100) {
   const handles=(db().prepare('SELECT handle FROM users WHERE is_public=1 ORDER BY handle').all() as any[]).map(x=>x.handle);

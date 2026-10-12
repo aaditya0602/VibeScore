@@ -54,6 +54,14 @@ VibeScore runs free on a Render web service (Docker), with the SQLite database c
 
 Run exactly one instance — SQLite with Litestream does not support horizontal scaling.
 
+### Hackathon integrations
+
+The no-account `/hokie` experience combines a readiness check, a Databricks-backed Virginia Tech career navigator, and optional privacy-safe clinic measurement. If Databricks is unavailable, it still returns a focused VibeScore drill and current official Virginia Tech resources. Clinic participation requires explicit consent, stores only coarse outcomes under rotating pseudonyms, expires after 90 days, supports deletion, and suppresses public cohorts smaller than ten.
+
+GoDaddy ANS discovery and hosted-agent registration use `ANS_API_KEY` and `ANS_API_SECRET` only on the server. After connecting a final HTTPS domain, run `npm run ans -- prepare --host <host>` and follow the generated ACME and DNS verification steps. The deployed application exposes the hosted scoring MCP at `/mcp` and its metadata at `/.well-known/mcp.json`.
+
+Databricks setup scripts live in [databricks/setup.sql](databricks/setup.sql) and [docs/databricks/clinic_event_v1.sql](docs/databricks/clinic_event_v1.sql). The deployment variables are documented in [.env.example](.env.example), and the optional clinic workflow is described in [the facilitator guide](docs/clinic-facilitator-guide.md).
+
 ## Use the MCP server
 
 ```powershell
@@ -100,6 +108,6 @@ npm run build
 npm test
 ```
 
-The test suite covers session parsing, feature extraction, scoring, accounts, challenge redaction, the QuickJS sandbox, API flows, MCP publishing safeguards, AI-provider requests, and synthetic skill-tier separation.
+The test suite covers session parsing, feature extraction, scoring, accounts, challenge redaction, the QuickJS sandbox, API flows, local and hosted MCP publishing safeguards, AI-provider requests, ANS sanitization, Databricks queries, clinic privacy controls, and synthetic skill-tier separation.
 
 See [PRD.md](PRD.md) for product requirements, acceptance criteria, the release checklist, and the roadmap.

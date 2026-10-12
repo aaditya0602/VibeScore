@@ -89,6 +89,11 @@ Developers also lack a clear bridge from "I use AI" to credible evidence that em
 | Workflow connection | Signed-in Connect page, one-time API-token rotation, copyable Codex and Claude Code configuration, and private dashboard score | `backend/src/server.ts`, `/connect` in `web/src/app.js` |
 | AI coach | Server-side, provider-agnostic coaching adapter over an OpenAI-compatible chat-completions endpoint | `backend/src/providers.ts` |
 | AI Builder Readiness Check | No-account, short readiness check with a recommended next drill | `/check` in `web/src/app.js` |
+| Hokie career navigator | No-account VibeScore path with governed Databricks resources and current official-source fallback | `backend/src/navigator.ts`, `/hokie` in `web/src/app.js` |
+| Clinic analytics | Explicit consent, rotating pseudonyms, coarse events, 90-day retention, deletion, cohort suppression, and a transactional export outbox | `backend/src/clinic-analytics.ts`, `docs/clinic-facilitator-guide.md` |
+| Hosted MCP | Request-scoped scoring, recommendations, public-profile verification, and confirmation-bound workflow publishing over HTTP | `backend/src/remote-mcp.ts`, `/.well-known/mcp.json` |
+| GoDaddy ANS | Allowlisted, bounded discovery/trust adapter plus registration and DNS-verification helper | `backend/src/ans.ts`, `scripts/ans-register.mjs` |
+| Databricks | Parameterized SQL Statement Execution for career resources and idempotent clinic-event export | `backend/src/databricks.ts`, `backend/src/databricks-clinic.ts` |
 | Persistence | SQLite storage for accounts, attempts, messages, workflow bundles, scores, and feedback | `backend/src/store.ts`, `backend/src/platform-store.ts` |
 
 ### Delivered privacy and security properties
@@ -104,7 +109,7 @@ Developers also lack a clear bridge from "I use AI" to credible evidence that em
 
 ### Current verification state
 
-The automated suite covers collectors, privacy reduction, MCP safeguards, scoring, accounts, assessment, hidden-test redaction, QuickJS isolation, API flows, provider request behavior, and deterministic score separation.
+The automated suite covers collectors, privacy reduction, local and hosted MCP safeguards, scoring, accounts, assessment, hidden-test redaction, QuickJS isolation, API flows, provider request behavior, ANS sanitization, Databricks query boundaries, clinic privacy controls, and deterministic score separation.
 
 ## 8. The collector and MCP server
 

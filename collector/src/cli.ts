@@ -2,16 +2,17 @@
 /**
  * vibescore CLI
  *
- *   vibescore report [--projects-dir <dir>] [--out bundle.json] [--json]
+ *   vibescore report (--projects-dir <dir> | --codex-dir <dir>) [--out bundle.json] [--json]
  *
- * Scans local Claude Code and Codex session logs, computes skill features on-device,
+ * Scans only the session roots explicitly selected on the command line, computes skill features on-device,
  * prints a report. Raw prompts/code never leave the machine; the optional
  * bundle contains derived numbers only.
  */
 
 import { readdir } from "node:fs/promises";
-import { writeFileSync } from "node:fs";
-import { homedir } from "node:os";
+import { writeFileSync, readFileSync, statSync } from "node:fs";
+import { pathToFileURL } from "node:url";
+import { parseBundle } from "../../backend/src/validation.ts";
 import { join, basename } from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -58,61 +59,46 @@ async function main(): Promise<void> {
   }
 
   if (cmd === "submit") {
-    // vibescore submit --bundle me.json --server http://localhost:8787 --handle aaditya [--token t]
     const bundlePath = argValue(args, "--bundle");
-    const server = (argValue(args, "--server") ?? "http://localhost:8787").replace(/\/$/, "");
-    const handle = argValue(args, "--handle");
-    let token = argValue(args, "--token");
-    if (!bundlePath || !handle) {
-      console.error("usage: vibescore submit --bundle <file.json> --handle <name> [--server url] [--token t]");
-      process.exit(1);
+    const server = submitServer(argValue(args, "--server") ?? "http://localhost:8787");
+    const token = argValue(args, "--token") ?? process.env.VIBESCORE_TOKEN;
+    if (!bundlePath) {
+      throw new Error("usage: vibescore submit --bundle <file.json> [--server url] --token <token> (or VIBESCORE_TOKEN)");
     }
-    const { readFileSync } = await import("node:fs");
-    const bundle = JSON.parse(readFileSync(bundlePath, "utf8"));
-    if (!token) {
-      const reg = await fetch(`${server}/api/register`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ handle }),
-      });
-      const regBody = await reg.json() as any;
-      if (!reg.ok) {
-        console.error(`register failed: ${regBody.error ?? reg.status} (existing handle? pass --token)`);
-        process.exit(1);
-      }
-      token = regBody.token as string;
-      console.log(`registered '${handle}'. SAVE THIS TOKEN for future submits:\n  ${token}\n`);
+    if (!token || token.length < 32 || token.length > 256 || /[\s\x00-\x1f\x7f]/.test(token)) {
+      throw new Error("A valid API token is required. Create one in Settings; submit never creates an account or changes profile visibility.");
     }
+    if (statSync(bundlePath).size > 2_000_000) throw new Error("Bundle exceeds the 2 MB limit.");
+    const bundle = parseBundle(JSON.parse(readFileSync(bundlePath, "utf8")));
     const resp = await fetch(`${server}/api/bundles`, {
-      method: "POST",
+      method: "POST", redirect: "error", signal: AbortSignal.timeout(30_000),
       headers: { "content-type": "application/json", "x-token": token },
       body: JSON.stringify(bundle),
     });
-    const body = await resp.json() as any;
-    if (!resp.ok) {
-      console.error(`submit failed: ${body.error ?? resp.status}`);
-      process.exit(1);
-    }
+    const body = await submissionResponse(resp);
     const s = body.score;
     console.log(`scored: ${s.rating} ± ${s.rd} (${s.tier})`);
     console.log(`subscores: efficiency ${s.subscores.efficiency} · direction ${s.subscores.direction} · craft ${s.subscores.craft} · shipping ${s.subscores.shipping}`);
-    console.log(`profile: ${server}/profile.html?u=${encodeURIComponent(handle)}`);
+    console.log(`profile: ${server}/profile/${encodeURIComponent(s.handle)} (available only if you publish your profile in Settings)`);
     return;
   }
 
   if (cmd !== "report") {
-    console.log("usage: vibescore report [--projects-dir <dir>] [--codex-dir <dir>] [--no-claude] [--no-codex] [--out bundle.json] [--html report.html] [--json]\n       vibescore compare <bundles...> [--truth ranking.txt]\n       vibescore submit --bundle <file.json> --handle <name> [--server url] [--token t]");
+    console.log("usage: vibescore report (--projects-dir <dir> | --codex-dir <dir>) [--no-claude] [--no-codex] [--out bundle.json] [--html report.html] [--json]\n       vibescore compare <bundles...> [--truth ranking.txt]\n       vibescore submit --bundle <file.json> [--server url] --token <token> (or VIBESCORE_TOKEN)");
     process.exit(cmd ? 1 : 0);
   }
 
-  const projectsDir = argValue(args, "--projects-dir")
-    ?? join(homedir(), ".claude", "projects");
+  const projectsDir = argValue(args, "--projects-dir");
+  const codexDir = argValue(args, "--codex-dir");
+  if (!projectsDir && !codexDir) {
+    throw new Error("Select at least one session root with --projects-dir or --codex-dir. VibeScore never scans global agent history implicitly.");
+  }
   const outPath = argValue(args, "--out");
   const asJson = args.includes("--json");
 
   let projectDirs: string[] = [];
   try {
-    if (!args.includes("--no-claude")) {
+    if (projectsDir && !args.includes("--no-claude")) {
       const entries = await readdir(projectsDir, { withFileTypes: true });
       projectDirs = entries.filter((e) => e.isDirectory()).map((e) => e.name);
     }
@@ -153,8 +139,8 @@ async function main(): Promise<void> {
   // Codex CLI rollouts (~/.codex/sessions or --codex-dir) — same report,
   // same privacy boundary. Absent dir → empty list, no error.
   const { parseCodexSessionFile, findCodexSessionFiles } = await import("./parse-codex.ts");
-  const codexFiles = args.includes("--no-codex")
-    ? [] : await findCodexSessionFiles(argValue(args, "--codex-dir"));
+  const codexFiles = args.includes("--no-codex") || !codexDir
+    ? [] : await findCodexSessionFiles(codexDir);
   for (const f of codexFiles) {
     try {
       const s = await parseCodexSessionFile(f);
@@ -205,7 +191,40 @@ function argValue(args: string[], flag: string): string | undefined {
   return i >= 0 && i + 1 < args.length ? args[i + 1] : undefined;
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((err) => { console.error((err as Error).message); process.exitCode = 1; });
+}
+
+/** Accept TLS destinations, with HTTP restricted to literal local development hosts. */
+export function submitServer(value: string): string {
+  const url = new URL(value);
+  const loopback = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname.toLowerCase());
+  if (url.protocol !== "https:" && !(url.protocol === "http:" && loopback)) throw new Error("Server must use HTTPS, except localhost/loopback development.");
+  if (url.username || url.password || url.search || url.hash) throw new Error("Server URL must not contain credentials, query, or fragment.");
+  return url.href.replace(/\/$/, "");
+}
+
+/** Bound streamed responses before parsing; only print validated score fields. */
+export async function submissionResponse(response: Response): Promise<any> {
+  if (!/^application\/json(?:;|$)/i.test(response.headers.get("content-type") ?? "")) throw new Error("Server returned a non-JSON response.");
+  const reader = response.body?.getReader();
+  if (!reader) throw new Error("Server returned an empty response.");
+  const chunks: Uint8Array[] = []; let size = 0;
+  try {
+    while (true) {
+      const {done, value} = await reader.read(); if (done) break;
+      size += value.byteLength;
+      if (size > 64_000) { await reader.cancel(); throw new Error("Server response exceeds 64 KB."); }
+      chunks.push(value);
+    }
+  } finally { reader.releaseLock(); }
+  let body: any;
+  try { body = JSON.parse(Buffer.concat(chunks).toString("utf8")); } catch { throw new Error("Server returned invalid JSON."); }
+  if (!response.ok) throw new Error(`Submit failed (HTTP ${response.status}).`);
+  const s = body?.score;
+  if (!s || !/^[a-z0-9][a-z0-9_-]{1,23}$/.test(s.handle ?? "") || typeof s.tier !== "string" || !/^[a-zA-Z0-9 _-]{1,80}$/.test(s.tier)
+    || ![s.rating, s.rd, ...["efficiency", "direction", "craft", "shipping"].map(k => s.subscores?.[k])].every(n => typeof n === "number" && Number.isFinite(n))) {
+    throw new Error("Server returned an invalid score.");
+  }
+  return body;
+}

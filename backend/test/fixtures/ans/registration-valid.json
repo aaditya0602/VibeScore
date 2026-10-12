@@ -1,0 +1,14 @@
+{
+  "agentId": "agent-1234",
+  "ansName": "vibescore.agent.example.com",
+  "status": "PENDING_ACME",
+  "expiresAt": "2026-09-20T12:00:00.000Z",
+  "challenge": {
+    "dnsRecord": {
+      "name": "_acme-challenge.agent.example.com",
+      "type": "TXT",
+      "value": "challenge-token"
+    }
+  },
+  "serverInternal": "must-not-be-persisted"
+}

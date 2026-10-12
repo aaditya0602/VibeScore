@@ -48,3 +48,26 @@ services:
         value: "20"
       - key: AI_MAX_OUTPUT_TOKENS
         value: "1200"
+      # Optional hackathon integrations. Secrets stay server-side.
+      - key: ANS_BASE_URL
+        value: https://api.godaddy.com
+      - key: ANS_API_KEY
+        sync: false
+      - key: ANS_API_SECRET
+        sync: false
+      - key: DATABRICKS_HOST
+        sync: false
+      - key: DATABRICKS_TOKEN
+        sync: false
+      - key: DATABRICKS_WAREHOUSE_ID
+        sync: false
+      - key: DATABRICKS_CATALOG
+        value: vibescore
+      - key: DATABRICKS_SCHEMA
+        value: hokie
+      - key: DATABRICKS_RESOURCES_TABLE
+        value: campus_resources
+      - key: DATABRICKS_CLINIC_EVENTS_TABLE
+        value: clinic_event_v1
+      - key: CLINIC_PSEUDONYM_SECRET
+        generateValue: true
