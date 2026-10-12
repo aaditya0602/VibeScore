@@ -20,6 +20,15 @@ ACR_NAME="${ACR_NAME:-vibescore${SUFFIX}acr}"
 STORAGE_ACCOUNT="${STORAGE_ACCOUNT:-vibescore${SUFFIX}data}"
 IMAGE_TAG="${IMAGE_TAG:-$(git rev-parse --short HEAD)}"
 IMAGE="${ACR_NAME}.azurecr.io/vibescore:${IMAGE_TAG}"
+ACR_ADMIN_TEMPORARY=0
+
+disable_temporary_acr_admin() {
+  if [ "$ACR_ADMIN_TEMPORARY" = 1 ]; then
+    az acr update --resource-group "$RESOURCE_GROUP" --name "$ACR_NAME" \
+      --admin-enabled false --output none || true
+  fi
+}
+trap disable_temporary_acr_admin EXIT
 
 for provider in Microsoft.App Microsoft.ContainerRegistry Microsoft.OperationalInsights Microsoft.Storage; do
   az provider register --namespace "$provider" --wait --output none
@@ -58,6 +67,7 @@ if ! az containerapp show --resource-group "$RESOURCE_GROUP" --name "$APP_NAME" 
   # Bootstrap with temporary registry credentials; after the identity exists we
   # switch the app to managed-identity image pulls and disable the admin user.
   az acr update --resource-group "$RESOURCE_GROUP" --name "$ACR_NAME" --admin-enabled true --output none
+  ACR_ADMIN_TEMPORARY=1
   ACR_USER="$(az acr credential show --resource-group "$RESOURCE_GROUP" --name "$ACR_NAME" --query username --output tsv)"
   ACR_PASSWORD="$(az acr credential show --resource-group "$RESOURCE_GROUP" --name "$ACR_NAME" --query 'passwords[0].value' --output tsv)"
   CLINIC_SECRET="$(openssl rand -hex 32)"
@@ -96,6 +106,7 @@ assign_role "AcrPull" "$ACR_ID"
 az containerapp registry set --resource-group "$RESOURCE_GROUP" --name "$APP_NAME" \
   --server "${ACR_NAME}.azurecr.io" --identity system --output none
 az acr update --resource-group "$RESOURCE_GROUP" --name "$ACR_NAME" --admin-enabled false --output none
+ACR_ADMIN_TEMPORARY=0
 
 FQDN="$(az containerapp show --resource-group "$RESOURCE_GROUP" --name "$APP_NAME" \
   --query properties.configuration.ingress.fqdn --output tsv)"
